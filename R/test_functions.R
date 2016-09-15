@@ -19,7 +19,7 @@ run_cmsy <- function(modpath, itervec, lh_list, data_avail, nyears, rewrite=FALS
   	species$gh <- 0.10 * species$ah
 
   	species$sel50 <- lh_choose$S50
-  	species$sel95 <- species$sel50*2
+  	species$sel95 <- species$sel50+1
 
   	stats <- list("msy"=matrix(NA, nrow=length(itervec), ncol=3), "fmsy"=matrix(NA, nrow=length(itervec), ncol=3), "m"=matrix(NA, nrow=length(itervec), ncol=3))
   		colnames(stats$msy) <- colnames(stats$fmsy) <- colnames(stats$m) <- c("re", "devs", "cover")
@@ -56,7 +56,7 @@ run_cmsy <- function(modpath, itervec, lh_list, data_avail, nyears, rewrite=FALS
   		}
   		if(grepl("LC", data_avail)){
         data_input <- cbind(data_input, lc)
-        data_input$ess <- 1
+        data_input$ess <- 10
       }
   		if(grepl("ML", data_avail)){
   			data_input$meanlength <- ml
@@ -75,12 +75,21 @@ run_cmsy <- function(modpath, itervec, lh_list, data_avail, nyears, rewrite=FALS
 		species$dfPriorInfo$dist[3] = "unif"
 		species$dfPriorInfo$par1[3] = quantile(species$data$catch,0.05)
 		species$dfPriorInfo$par2[3] = quantile(species$data$catch,0.95)
+    ## age at 50% and 95% selectivity
+    selexPriorInfo <- data.frame("id"=4, "dist"="lnorm", "par1"=log(species$sel50), "par2"=0.1*species$sel50, "log"=TRUE, "stringAsFactors"=FALSE)
+    if(nrow(species$dfPriorInfo)==3) species$dfPriorInfo <- rbind.data.frame(species$dfPriorInfo, selexPriorInfo)
+    if(nrow(species$dfPriorInfo)==4){
+      species$dfPriorInfo$dist[4] <- selexPriorInfo$dist
+      species$dfPriorInfo$par1[4] <- selexPriorInfo$par1
+      species$dfPriorInfo$par2[4] <- selexPriorInfo$par2
+    }
 
-		species <- sample.sid(species, nsamp)
+    set.seed(123)
+		species <- sample.sid(sID=species, selex=TRUE, n=nsamp)
      		# species$m <- species$S[1,1]
      		# species$fmsy <- species$S[1,2]
      		# species$msy <- species$S[1,3]
-		species <- sir.sid(species, ncores=ncores)
+		species <- sir.sid(sID=species, selex=TRUE, ncores=ncores)
 		species$msy.stats <- summary(species$S[species$idx,3])
 		species$fmsy.stats <- summary(species$S[species$idx,2])
 		species$m.stats <- summary(species$S[species$idx,1])
@@ -99,9 +108,9 @@ run_cmsy <- function(modpath, itervec, lh_list, data_avail, nyears, rewrite=FALS
 		stats$fmsy[iter,"devs"] <- (species$fmsy.stats["Median"] - true_fmsy)^2
 		stats$m[iter,"devs"] <- (species$m.stats["Median"] - true_m)^2
 
-		stats$msy[iter,"cover"] <- ifelse(species$msy.stats["1st Qu."]<= true_msy & species$msy.stats["3rd Qu."]>= true_msy, 1, 0)
-		stats$fmsy[iter,"cover"] <- ifelse(species$fmsy.stats["1st Qu."]<= true_fmsy & species$fmsy.stats["3rd Qu."]>= true_fmsy, 1, 0)
-		stats$m[iter,"cover"] <- ifelse(species$m.stats["1st Qu."]<= true_m & species$m.stats["3rd Qu."]>= true_m, 1, 0)
+		stats$msy[iter,"cover"] <- ifelse(species$msy.stats["Min."]<= true_msy & species$msy.stats["Max."]>= true_msy, 1, 0)
+		stats$fmsy[iter,"cover"] <- ifelse(species$fmsy.stats["Min."]<= true_fmsy & species$fmsy.stats["Max."]>= true_fmsy, 1, 0)
+		stats$m[iter,"cover"] <- ifelse(species$m.stats["Min."]<= true_m & species$m.stats["Max."]>= true_m, 1, 0)
   	}
   	saveRDS(stats, file.path(modpath, "stats.rds"))
 	summary_stats <- list("msy"=NULL, "fmsy"=NULL, "m"=NULL)
