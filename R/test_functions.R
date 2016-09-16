@@ -1,4 +1,4 @@
-run_cmsy <- function(modpath, itervec, lh_list, data_avail, nyears, rewrite=FALSE, nsamp=5000, ncores=1){
+run_cmsy <- function(modpath, itervec, lh_list, data_avail, nyears, selex=FALSE, rewrite=FALSE, nsamp=5000, ncores=1){
 	
 	lh_num <- ifelse(grepl("LH1", modpath), 1, ifelse(grepl("LH2", modpath), 2, ifelse(grepl("LH3", modpath), 3, ifelse(grepl("LH4", modpath), 4, ifelse(grepl("LH5", modpath), 5, ifelse(grepl("CRSNAP", modpath), "CRSNAP", ifelse(grepl("SIGSUT", modpath), "SIGSUT", ifelse(grepl("HAKE", modpath), "HAKE", stop("No match to life history number")))))))))
   	lh_choose <- lh_list[[lh_num]]
@@ -22,22 +22,46 @@ run_cmsy <- function(modpath, itervec, lh_list, data_avail, nyears, rewrite=FALS
   	species$sel95 <- species$sel50+1
 
   	stats <- list("msy"=matrix(NA, nrow=length(itervec), ncol=3), "fmsy"=matrix(NA, nrow=length(itervec), ncol=3), "m"=matrix(NA, nrow=length(itervec), ncol=3))
+    if(selex==TRUE) stats$sel50 <- matrix(NA, nrow=length(itervec), ncol=3)
   		colnames(stats$msy) <- colnames(stats$fmsy) <- colnames(stats$m) <- c("re", "devs", "cover")
+      if(selex==TRUE) colnames(stats$sel50) <- c("re", "devs", "cover")
 
     if(rewrite==TRUE & file.exists(file.path(modpath, "stats.rds"))) unlink(file.path(modpath, "stats.rds"), TRUE)
     if(rewrite==TRUE & file.exists(file.path(modpath, "summary_stats.rds"))) unlink(file.path(modpath, "summary_stats.rds"), TRUE)
 
   	for(iter in 1:length(itervec)){
 
-  		if(rewrite==FALSE & file.exists(file.path(modpath, itervec[iter], "cmsy_output.rds"))) next
+  		if(rewrite==FALSE & file.exists(file.path(modpath, itervec[iter], "cmsy_output.rds"))){
+        species <- readRDS(file.path(modpath, itervec[iter], "cmsy_output.rds"))
+        data_gen <- readRDS(file.path(modpath, itervec[iter], "True.rds"))
+            true_msy <- data_gen$MSY
+            true_fmsy <- data_gen$Fmsy
+            true_m <- data_gen$M
+            true_sel50 <- lh_choose$S50
+
+        stats$msy[iter,"re"] <- (species$msy.stats["Median"] - true_msy)/true_msy
+        stats$fmsy[iter,"re"] <- (species$fmsy.stats["Median"] - true_fmsy)/true_fmsy
+        stats$m[iter,"re"] <- (species$m.stats["Median"] - true_m)/true_m
+        if(selex==TRUE) stats$sel50[iter,"re"] <- (species$sel50.stats["Median"] - true_sel50)/true_sel50   
+
+        stats$msy[iter,"devs"] <- (species$msy.stats["Median"] - true_msy)^2
+        stats$fmsy[iter,"devs"] <- (species$fmsy.stats["Median"] - true_fmsy)^2
+        stats$m[iter,"devs"] <- (species$m.stats["Median"] - true_m)^2
+        if(selex==TRUE) stats$sel50[iter,"devs"] <- (species$sel50.stats["Median"] - true_sel50)^2    
+
+        stats$msy[iter,"cover"] <- ifelse(species$msy.stats["Min."]<= true_msy & species$msy.stats["Max."]>= true_msy, 1, 0)
+        stats$fmsy[iter,"cover"] <- ifelse(species$fmsy.stats["Min."]<= true_fmsy & species$fmsy.stats["Max."]>= true_fmsy, 1, 0)
+        stats$m[iter,"cover"] <- ifelse(species$m.stats["Min."]<= true_m & species$m.stats["Max."]>= true_m, 1, 0)
+        if(selex==TRUE) stats$sel50[iter,"cover"] <- ifelse(species$sel50.stats["Min."]<= true_sel50 & species$sel50.stats["Max."]>=true_sel50, 1, 0)
+        next
+      }
 
   		data_gen <- readRDS(file.path(modpath, itervec[iter], "True.rds"))
   		catch <- data_gen$C_t
   		index <- data_gen$I_t
   		index.lse <- rep(0.2, length(index))
-  		biomass <- biomass.lse <- rep(NA, length(catch))
-  			biomass[round(length(catch)/2):length(catch)] <- index[round(length(catch)/2):length(catch)]/lh_choose$qcoef
-  			biomass.lse[round(length(catch)/2):length(catch)] <- 0.15
+  		biomass <- index/lh_choose$qcoef
+  		biomass.lse <- rep(0.2, length(catch))
   		lc <- data_gen$LF
   			bins <- lh_choose$mids
   			colnames(lc) <- paste0("lc.",bins)
@@ -50,13 +74,13 @@ run_cmsy <- function(modpath, itervec, lh_list, data_avail, nyears, rewrite=FALS
   			data_input$index <- index
   			data_input$index.lse <- index.lse
   		}
-  		if(grepl("biomass", data_avail)){
+  		if(grepl("bsurvey", data_avail)){
   			data_input$biomass <- biomass
   			data_input$biomass.lse <- biomass.lse
   		}
   		if(grepl("LC", data_avail)){
         data_input <- cbind(data_input, lc)
-        data_input$ess <- 10
+        data_input$ess <- 1
       }
   		if(grepl("ML", data_avail)){
   			data_input$meanlength <- ml
@@ -84,36 +108,42 @@ run_cmsy <- function(modpath, itervec, lh_list, data_avail, nyears, rewrite=FALS
       species$dfPriorInfo$par2[4] <- selexPriorInfo$par2
     }
 
-    set.seed(123)
-		species <- sample.sid(sID=species, selex=TRUE, n=nsamp)
+		species <- sample.sid(sID=species, selex=selex, n=nsamp)
      		# species$m <- species$S[1,1]
      		# species$fmsy <- species$S[1,2]
      		# species$msy <- species$S[1,3]
-		species <- sir.sid(sID=species, selex=TRUE, ncores=ncores)
+		species <- sir.sid(sID=species, selex=selex, ncores=ncores)
 		species$msy.stats <- summary(species$S[species$idx,3])
 		species$fmsy.stats <- summary(species$S[species$idx,2])
 		species$m.stats <- summary(species$S[species$idx,1])
+    if(selex==TRUE) species$sel50.stats <- summary(species$S[species$idx,4])
 
 		true_msy <- data_gen$MSY
 		true_fmsy <- data_gen$Fmsy
 		true_m <- data_gen$M
+    true_sel50 <- lh_choose$S50
 
 		saveRDS(species, file.path(modpath, itervec[iter], "cmsy_output.rds"))
 
 		stats$msy[iter,"re"] <- (species$msy.stats["Median"] - true_msy)/true_msy
 		stats$fmsy[iter,"re"] <- (species$fmsy.stats["Median"] - true_fmsy)/true_fmsy
 		stats$m[iter,"re"] <- (species$m.stats["Median"] - true_m)/true_m
+    if(selex==TRUE) stats$sel50[iter,"re"] <- (species$sel50.stats["Median"] - true_sel50)/true_sel50
 
 		stats$msy[iter,"devs"] <- (species$msy.stats["Median"] - true_msy)^2
 		stats$fmsy[iter,"devs"] <- (species$fmsy.stats["Median"] - true_fmsy)^2
 		stats$m[iter,"devs"] <- (species$m.stats["Median"] - true_m)^2
+    if(selex==TRUE) stats$sel50[iter,"devs"] <- (species$sel50.stats["Median"] - true_sel50)^2
 
 		stats$msy[iter,"cover"] <- ifelse(species$msy.stats["Min."]<= true_msy & species$msy.stats["Max."]>= true_msy, 1, 0)
 		stats$fmsy[iter,"cover"] <- ifelse(species$fmsy.stats["Min."]<= true_fmsy & species$fmsy.stats["Max."]>= true_fmsy, 1, 0)
 		stats$m[iter,"cover"] <- ifelse(species$m.stats["Min."]<= true_m & species$m.stats["Max."]>= true_m, 1, 0)
+    if(selex==TRUE) stats$sel50[iter,"cover"] <- ifelse(species$sel50.stats["Min."]<= true_sel50 & species$sel50.stats["Max."]>=true_sel50, 1, 0)
   	}
+
   	saveRDS(stats, file.path(modpath, "stats.rds"))
 	summary_stats <- list("msy"=NULL, "fmsy"=NULL, "m"=NULL)
+  if(selex==TRUE) summary_stats$sel50 <- NULL
 	summary_stats$msy$mre <- median(stats$msy[,"re"])
 	summary_stats$msy$rmse <- sqrt(sum(stats$msy[,"devs"])/length(stats$msy[,"devs"]))
 	summary_stats$msy$pcover <- sum(stats$msy[,"cover"])/length(stats$msy[,"cover"])
@@ -123,6 +153,11 @@ run_cmsy <- function(modpath, itervec, lh_list, data_avail, nyears, rewrite=FALS
 	summary_stats$m$mre <- median(stats$m[,"re"])
 	summary_stats$m$rmse <- sqrt(sum(stats$m[,"devs"])/length(stats$m[,"devs"]))
 	summary_stats$m$pcover <- sum(stats$m[,"cover"])/length(stats$m[,"cover"])
+  if(selex==TRUE){
+      summary_stats$sel50$mre <- median(stats$sel50[,"re"])
+      summary_stats$sel50$rmse <- sqrt(sum(stats$sel50[,"devs"])/length(stats$sel50[,"devs"]))
+      summary_stats$sel50$pcover <- sum(stats$sel50[,"cover"])/length(stats$sel50[,"cover"])
+  }
 	saveRDS(summary_stats, file.path(modpath, "summary_stats.rds"))
 
 	return(paste0("ran ", length(itervec), " iters in ", modpath))
@@ -148,14 +183,15 @@ compare_re <- function(dir_vec, mod_names, Fdyn_vec, Rdyn_vec, lh_num, save, fig
           boxplot(stats, ylim=c(-3, 3), col="turquoise", xaxt="n", yaxt="n", lwd=2)
           abline(h=0, lwd=5, lty=2)
           for(i in 1:ncol(sumstats)){
-            text(x=i, y=-2.5, paste0(round(as.numeric(sumstats["rmse",i]),2), "\n(", round(as.numeric(sumstats["mre",i]),2), ")\n"), cex=1.2)
+            text(x=i, y=-2.5, paste0("(", round(as.numeric(sumstats["mre",i]),2), ")\n", round(as.numeric(sumstats["pcover",i]),2)), cex=1.2)
           }
         if(ff==1){
           if(length(Rdyn_vec)>1) mtext(paste0( Rdyn_vec[rr]), side=2, line=5, font=2, cex=1.5)
           axis(side=2, las=2, cex.axis=1.2)
         }
         if(rr==1) if(length(Rdyn_vec)>1) mtext(paste0(Fdyn_vec[ff]), side=3, line=1, font=2, cex=1.5)
-        if(rr==length(Rdyn_vec)) axis(side=1, at=1:length(mod_names), mod_names, cex.axis=1.8, font=2)
+          mod_names_plot <- gsub("_", "\n", mod_names)
+        if(rr==length(Rdyn_vec)) axis(side=1, at=1:length(mod_names), mod_names_plot, cex.axis=1.3, font=2)
         }
       }
     }
