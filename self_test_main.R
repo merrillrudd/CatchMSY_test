@@ -86,6 +86,7 @@ png(file.path(fig_dir, "sel50_boxplot_1.png"), width=10, height=6, units="in", r
 boxplot(hake$S[,"sel50"], col="gray", lwd=2, xlim=c(0,8), ylim=c(0,exp(hake$dfPriorInfo$par1[4]*2)))
 dev.off()
 
+
 #### ------------- catch-only method -------------------#####
 M0 <- hake
 
@@ -133,6 +134,8 @@ png(file.path(fig_dir, "sel50_boxplot_2.png"), width=10, height=6, units="in", r
 boxplot(hake$S[,"sel50"], M0$S[M0$idx,"sel50"], col=c("gray","goldenrod"), lwd=2, xlim=c(0,8), ylim=c(0,exp(hake$dfPriorInfo$par1[4]*2)))
 dev.off()
 
+
+
 #### ------------- catch + index ------------------------#####
 M1 <- hake
 
@@ -144,6 +147,9 @@ M1 <- sir.sid(M1, selex=TRUE, ncores)
 
 # Get MSY statistics
 M1$msy.stats <- summary(M1$S[M1$idx,3])
+
+plot(as.numeric(as.vector(unlist(M1$zt)))) - as.numeric(M1$zbar[1,1]))
+abline(h=0)
 
 # Narrow down samples
 M1_cols <- rep("black", nsamp)
@@ -194,7 +200,7 @@ dev.off()
 OM <- hake
 OM$la.cv <- 0.10
 OM_new <- catchMSYModel(OM)
-LF <- t(OM_new$LF)
+LC <- t(OM_new$LF)
 ML <- OM_new$ML
 
 
@@ -310,7 +316,7 @@ dev.off()
 #### ---------- catch + length composition --------------#####
 ### ess cannot go beyond about 10
 M4 <- hake
-M4$data <- cbind(M4$data[,c("year","catch")], LF, "ess"=rep(10, nrow(LF)))
+M4$data <- cbind(M4$data[,c("year","catch")], LC, "ess"=rep(10, nrow(LC)))
 
 # run model with each sample
 M4 <- sir.sid(M4,selex=TRUE,ncores)
@@ -361,7 +367,7 @@ dev.off()
 #### ---------- catch + length composition + index -----------#####
 
 M5 <- hake
-M5$data <- cbind(M5$data[,c("year","catch", "index", "index.lse")], LF, "ess"=rep(10, nrow(LF)))
+M5$data <- cbind(M5$data[,c("year","catch", "index", "index.lse")], LC, "ess"=rep(10, nrow(LC)))
 
 # run model with each sample
 M5 <- sir.sid(M5,selex=TRUE,ncores)
@@ -412,4 +418,20 @@ dev.off()
 
 png(file.path(fig_dir, "sel50_boxplot_7.png"), width=10, height=6, units="in", res=200)
 boxplot(hake$S[,"sel50"], M0$S[M0$idx,"sel50"], M1$S[M1$idx,"sel50"], M2$S[M2$idx,"sel50"], M3$S[M3$idx,"sel50"], M4$S[M4$idx,"sel50"], M5$S[M5$idx,"sel50"], col=c("gray","goldenrod","steelblue", "violet", "purple", "lawngreen", "forestgreen"), lwd=2, xlim=c(0,8), ylim=c(0,exp(hake$dfPriorInfo$par1[4]*2)))
+dev.off()
+
+#### qqplots
+png(file.path(fig_dir, "qqMSY.png"), width=10, height=8, units="in", res=200)
+par(mfrow=c(2,2))
+qqplot(hake$S[,"MSY"], M0$S[M0$idx,"MSY"], xlab="Sampling space", ylab="Posterior", xlim=c(100,400), ylim=c(100,400), main="Catch")
+lines(x=100:400, y=100:400, col="blue", lwd=3)
+
+qqplot(hake$S[,"MSY"], M1$S[M1$idx,"MSY"], xlab="Sampling space", ylab="Posterior", xlim=c(100,400), ylim=c(100,400), main="+Index")
+lines(x=100:400, y=100:400, col="blue", lwd=3)
+
+qqplot(hake$S[,"MSY"], M2$S[M2$idx,"MSY"], xlab="Sampling space", ylab="Posterior", xlim=c(100,400), ylim=c(100,400), main="+Mean Length")
+lines(x=100:400, y=100:400, col="blue", lwd=3)
+
+qqplot(hake$S[,"MSY"], M3$S[M3$idx,"MSY"], xlab="Sampling space", ylab="Posterior", xlim=c(100,400), ylim=c(100,400), main="+Index + Mean Length")
+lines(x=100:400, y=100:400, col="blue", lwd=3)
 dev.off()
