@@ -29,15 +29,16 @@ run_cmsy <- function(modpath, itervec, lh_list, data_avail, nyears, selex=FALSE,
     if(rewrite==TRUE & file.exists(file.path(modpath, "stats.rds"))) unlink(file.path(modpath, "stats.rds"), TRUE)
     if(rewrite==TRUE & file.exists(file.path(modpath, "summary_stats.rds"))) unlink(file.path(modpath, "summary_stats.rds"), TRUE)
 
-  	for(iter in 1:length(itervec)){
+  for(iter in 1:length(itervec)){
+
+      data_gen <- readRDS(file.path(modpath, itervec[iter], "True.rds"))
+      true_msy <- data_gen$MSY
+      true_fmsy <- data_gen$Fmsy
+      true_m <- data_gen$M
+      true_sel50 <- lh_choose$S50
 
   		if(rewrite==FALSE & file.exists(file.path(modpath, itervec[iter], "cmsy_output.rds"))){
         species <- readRDS(file.path(modpath, itervec[iter], "cmsy_output.rds"))
-        data_gen <- readRDS(file.path(modpath, itervec[iter], "True.rds"))
-            true_msy <- data_gen$MSY
-            true_fmsy <- data_gen$Fmsy
-            true_m <- data_gen$M
-            true_sel50 <- lh_choose$S50
 
         stats$msy[iter,"re"] <- (species$msy.stats["Median"] - true_msy)/true_msy
         stats$fmsy[iter,"re"] <- (species$fmsy.stats["Median"] - true_fmsy)/true_fmsy
@@ -56,92 +57,95 @@ run_cmsy <- function(modpath, itervec, lh_list, data_avail, nyears, selex=FALSE,
         next
       }
 
-  		data_gen <- readRDS(file.path(modpath, itervec[iter], "True.rds"))
-  		catch <- data_gen$C_t
-  		index <- data_gen$I_t
-  		index.lse <- rep(0.2, length(index))
-  		biomass <- index/lh_choose$qcoef
-  		biomass.lse <- rep(0.2, length(catch))
-  		lc <- data_gen$LF
-  			bins <- lh_choose$mids
-  			colnames(lc) <- paste0("lc.",bins)
-  		ml <- data_gen$ML_t
-  		ml.lse <- rep(0.6, length(ml))
+      if(rewrite==TRUE | file.exists(file.path(modpath, itervec[iter], "cmsy_output.rds"))==FALSE){
 
-  		data_input <- data.frame("year"=1:nyears)
-  		if(grepl("catch", data_avail)) data_input$catch <- catch
-  		if(grepl("index", data_avail)){
-  			data_input$index <- index
-  			data_input$index.lse <- index.lse
-  		}
-  		if(grepl("bsurvey", data_avail)){
-  			data_input$biomass <- biomass
-  			data_input$biomass.lse <- biomass.lse
-  		}
-  		if(grepl("LC", data_avail)){
-        data_input <- cbind(data_input, lc)
-        data_input$ess <- 1
+      		catch <- data_gen$C_t
+      		index <- data_gen$I_t
+      		index.lse <- rep(0.2, length(index))
+      		biomass <- index/lh_choose$qcoef
+      		biomass.lse <- rep(0.2, length(catch))
+      		lc <- data_gen$LF
+      			bins <- lh_choose$mids
+      			colnames(lc) <- paste0("lc.",bins)
+      		ml <- data_gen$ML_t
+      		ml.lse <- rep(0.6, length(ml))    
+
+      		data_input <- data.frame("year"=1:nyears)
+      		if(grepl("catch", data_avail)) data_input$catch <- catch
+      		if(grepl("index", data_avail)){
+      			data_input$index <- index
+      			data_input$index.lse <- index.lse
+      		}
+      		if(grepl("bsurvey", data_avail)){
+      			data_input$biomass <- biomass
+      			data_input$biomass.lse <- biomass.lse
+      		}
+      		if(grepl("LC", data_avail)){
+            data_input <- cbind(data_input, lc)
+            data_input$ess <- 1
+          }
+      		if(grepl("ML", data_avail)){
+      			data_input$meanlength <- ml
+      			data_input$meanlength.lse <- ml.lse
+      		}   
+
+      		species$data <- data_input    
+
+      		# Set parameter sampling frame
+    		species$dfPriorInfo$dist[1] = "lnorm"
+    		species$dfPriorInfo$par1[1] = log(species$m)
+    		species$dfPriorInfo$par2[1] = 0.05 * species$m
+    		species$dfPriorInfo$dist[2] = "unif"
+    		species$dfPriorInfo$par1[2] = 0.20 * species$m
+    		species$dfPriorInfo$par2[2] = 1.50 * species$m
+    		species$dfPriorInfo$dist[3] = "unif"
+    		species$dfPriorInfo$par1[3] = quantile(species$data$catch,0.05)
+    		species$dfPriorInfo$par2[3] = quantile(species$data$catch,0.95)
+        ## age at 50% and 95% selectivity
+        selexPriorInfo <- data.frame("id"=4, "dist"="lnorm", "par1"=log(species$sel50), "par2"=0.1*species$sel50, "log"=TRUE, "stringAsFactors"=FALSE)
+        if(nrow(species$dfPriorInfo)==3) species$dfPriorInfo <- rbind.data.frame(species$dfPriorInfo, selexPriorInfo)
+        if(nrow(species$dfPriorInfo)==4){
+          species$dfPriorInfo$dist[4] <- selexPriorInfo$dist
+          species$dfPriorInfo$par1[4] <- selexPriorInfo$par1
+          species$dfPriorInfo$par2[4] <- selexPriorInfo$par2
+        }   
+
+    		species <- sample.sid(sID=species, selex=selex, n=nsamp)
+         		# species$m <- species$S[1,1]
+         		# species$fmsy <- species$S[1,2]
+         		# species$msy <- species$S[1,3]
+    		species_new <- tryCatch(sir.sid(sID=species, selex=selex, ncores=ncores), error=function(e) NA)
+        if(all(is.na(species_new))) write("error in model run", file.path(modpath, itervec[iter], "error.txt"))
+        if(all(is.na(species_new))==FALSE){
+          species <- species_new
+          species$msy.stats <- summary(species$S[species$idx,3])
+          species$fmsy.stats <- summary(species$S[species$idx,2])
+          species$m.stats <- summary(species$S[species$idx,1])
+          if(selex==TRUE) species$sel50.stats <- summary(species$S[species$idx,4])         
+          saveRDS(species, file.path(modpath, itervec[iter], "cmsy_output.rds"))
+        }
       }
-  		if(grepl("ML", data_avail)){
-  			data_input$meanlength <- ml
-  			data_input$meanlength.lse <- ml.lse
-  		}
 
-  		species$data <- data_input
+    if(all(is.na(species))==FALSE){
+      stats$msy[iter,"re"] <- (species$msy.stats["Median"] - true_msy)/true_msy
+      stats$fmsy[iter,"re"] <- (species$fmsy.stats["Median"] - true_fmsy)/true_fmsy
+      stats$m[iter,"re"] <- (species$m.stats["Median"] - true_m)/true_m
+      if(selex==TRUE) stats$sel50[iter,"re"] <- (species$sel50.stats["Median"] - true_sel50)/true_sel50 
 
-  		# Set parameter sampling frame
-		species$dfPriorInfo$dist[1] = "lnorm"
-		species$dfPriorInfo$par1[1] = log(species$m)
-		species$dfPriorInfo$par2[1] = 0.05 * species$m
-		species$dfPriorInfo$dist[2] = "unif"
-		species$dfPriorInfo$par1[2] = 0.20 * species$m
-		species$dfPriorInfo$par2[2] = 1.50 * species$m
-		species$dfPriorInfo$dist[3] = "unif"
-		species$dfPriorInfo$par1[3] = quantile(species$data$catch,0.05)
-		species$dfPriorInfo$par2[3] = quantile(species$data$catch,0.95)
-    ## age at 50% and 95% selectivity
-    selexPriorInfo <- data.frame("id"=4, "dist"="lnorm", "par1"=log(species$sel50), "par2"=0.1*species$sel50, "log"=TRUE, "stringAsFactors"=FALSE)
-    if(nrow(species$dfPriorInfo)==3) species$dfPriorInfo <- rbind.data.frame(species$dfPriorInfo, selexPriorInfo)
-    if(nrow(species$dfPriorInfo)==4){
-      species$dfPriorInfo$dist[4] <- selexPriorInfo$dist
-      species$dfPriorInfo$par1[4] <- selexPriorInfo$par1
-      species$dfPriorInfo$par2[4] <- selexPriorInfo$par2
+      stats$msy[iter,"devs"] <- (species$msy.stats["Median"] - true_msy)^2
+      stats$fmsy[iter,"devs"] <- (species$fmsy.stats["Median"] - true_fmsy)^2
+      stats$m[iter,"devs"] <- (species$m.stats["Median"] - true_m)^2
+      if(selex==TRUE) stats$sel50[iter,"devs"] <- (species$sel50.stats["Median"] - true_sel50)^2  
+
+      stats$msy[iter,"cover"] <- ifelse(species$msy.stats["Min."]<= true_msy & species$msy.stats["Max."]>= true_msy, 1, 0)
+      stats$fmsy[iter,"cover"] <- ifelse(species$fmsy.stats["Min."]<= true_fmsy & species$fmsy.stats["Max."]>= true_fmsy, 1, 0)
+      stats$m[iter,"cover"] <- ifelse(species$m.stats["Min."]<= true_m & species$m.stats["Max."]>= true_m, 1, 0)
+      if(selex==TRUE) stats$sel50[iter,"cover"] <- ifelse(species$sel50.stats["Min."]<= true_sel50 & species$sel50.stats["Max."]>=true_sel50, 1, 0)      
     }
+    if(all(is.na(species))) next
+  }
 
-		species <- sample.sid(sID=species, selex=selex, n=nsamp)
-     		# species$m <- species$S[1,1]
-     		# species$fmsy <- species$S[1,2]
-     		# species$msy <- species$S[1,3]
-		species <- sir.sid(sID=species, selex=selex, ncores=ncores)
-		species$msy.stats <- summary(species$S[species$idx,3])
-		species$fmsy.stats <- summary(species$S[species$idx,2])
-		species$m.stats <- summary(species$S[species$idx,1])
-    if(selex==TRUE) species$sel50.stats <- summary(species$S[species$idx,4])
-
-		true_msy <- data_gen$MSY
-		true_fmsy <- data_gen$Fmsy
-		true_m <- data_gen$M
-    true_sel50 <- lh_choose$S50
-
-		saveRDS(species, file.path(modpath, itervec[iter], "cmsy_output.rds"))
-
-		stats$msy[iter,"re"] <- (species$msy.stats["Median"] - true_msy)/true_msy
-		stats$fmsy[iter,"re"] <- (species$fmsy.stats["Median"] - true_fmsy)/true_fmsy
-		stats$m[iter,"re"] <- (species$m.stats["Median"] - true_m)/true_m
-    if(selex==TRUE) stats$sel50[iter,"re"] <- (species$sel50.stats["Median"] - true_sel50)/true_sel50
-
-		stats$msy[iter,"devs"] <- (species$msy.stats["Median"] - true_msy)^2
-		stats$fmsy[iter,"devs"] <- (species$fmsy.stats["Median"] - true_fmsy)^2
-		stats$m[iter,"devs"] <- (species$m.stats["Median"] - true_m)^2
-    if(selex==TRUE) stats$sel50[iter,"devs"] <- (species$sel50.stats["Median"] - true_sel50)^2
-
-		stats$msy[iter,"cover"] <- ifelse(species$msy.stats["Min."]<= true_msy & species$msy.stats["Max."]>= true_msy, 1, 0)
-		stats$fmsy[iter,"cover"] <- ifelse(species$fmsy.stats["Min."]<= true_fmsy & species$fmsy.stats["Max."]>= true_fmsy, 1, 0)
-		stats$m[iter,"cover"] <- ifelse(species$m.stats["Min."]<= true_m & species$m.stats["Max."]>= true_m, 1, 0)
-    if(selex==TRUE) stats$sel50[iter,"cover"] <- ifelse(species$sel50.stats["Min."]<= true_sel50 & species$sel50.stats["Max."]>=true_sel50, 1, 0)
-  	}
-
-  	saveRDS(stats, file.path(modpath, "stats.rds"))
+  saveRDS(stats, file.path(modpath, "stats.rds"))
 	summary_stats <- list("msy"=NULL, "fmsy"=NULL, "m"=NULL)
   if(selex==TRUE) summary_stats$sel50 <- NULL
 	summary_stats$msy$mre <- median(stats$msy[,"re"])
@@ -163,7 +167,7 @@ run_cmsy <- function(modpath, itervec, lh_list, data_avail, nyears, selex=FALSE,
 	return(paste0("ran ", length(itervec), " iters in ", modpath))
 }
 
-compare_re <- function(dir_vec, mod_names, Fdyn_vec, Rdyn_vec, lh_num, save, fig_name){
+compare_re <- function(dir_vec, mod_names, Fdyn_vec, Rdyn_vec, lh_num, save, fig_name, itervec){
   for(ll in 1:length(lh_num)){
     if(save==TRUE){
       write_fig <- paste0(fig_name, "_LH", lh_num[ll], ".png")
@@ -183,7 +187,7 @@ compare_re <- function(dir_vec, mod_names, Fdyn_vec, Rdyn_vec, lh_num, save, fig
           boxplot(stats, ylim=c(-3, 3), col="turquoise", xaxt="n", yaxt="n", lwd=2)
           abline(h=0, lwd=5, lty=2)
           for(i in 1:ncol(sumstats)){
-            text(x=i, y=-2.5, paste0("(", round(as.numeric(sumstats["mre",i]),2), ")\n", round(as.numeric(sumstats["pcover",i]),2)), cex=1.2)
+            text(x=i, y=-2.5, paste0("(", round(as.numeric(sumstats["mre",i]),2), ")\n", round(as.numeric(sumstats["pcover",i]),2)), cex=3)
           }
         if(ff==1){
           if(length(Rdyn_vec)>1) mtext(paste0( Rdyn_vec[rr]), side=2, line=5, font=2, cex=1.5)
@@ -203,7 +207,7 @@ compare_re <- function(dir_vec, mod_names, Fdyn_vec, Rdyn_vec, lh_num, save, fig
           boxplot(stats, ylim=c(-3, 3), col="turquoise", xaxt="n", yaxt="n", lwd=2)
           abline(h=0, lwd=5, lty=2)
           for(i in 1:ncol(sumstats)){
-            text(x=i, y=-2.5, paste0(round(as.numeric(sumstats["rmse",i]),2), "\n(", round(as.numeric(sumstats["mre",i]),2), ")\n"), cex=1.2)
+            text(x=i, y=-2.5, paste0("(", round(as.numeric(sumstats["mre",i]),2), ")\n", round(as.numeric(sumstats["pcover",i]),2)), cex=3)
           } 
     }
     mtext("Model", side=1, cex=1.5, outer=TRUE, line=4)
@@ -213,3 +217,4 @@ compare_re <- function(dir_vec, mod_names, Fdyn_vec, Rdyn_vec, lh_num, save, fig
     if(save==TRUE) dev.off()
   }
 }
+
