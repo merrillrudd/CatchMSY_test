@@ -114,9 +114,10 @@ run_cmsy <- function(modpath, itervec, lh_list, data_avail, nyears, selex=FALSE,
          		# species$m <- species$S[1,1]
          		# species$fmsy <- species$S[1,2]
          		# species$msy <- species$S[1,3]
-    		species <- tryCatch(sir.sid(sID=species, selex=selex, ncores=ncores), error=function(e) NA)
-        if(all(is.na(species))) write("error in model run", file.path(modpath, itervec[iter], "error.txt"))
-        if(all(is.na(species))==FALSE){
+    		species_new <- tryCatch(sir.sid(sID=species, selex=selex, ncores=ncores), error=function(e) NA)
+        if(all(is.na(species_new))) write("error in model run", file.path(modpath, itervec[iter], "error.txt"))
+        if(all(is.na(species_new))==FALSE){
+          species <- species_new
           species$msy.stats <- summary(species$S[species$idx,3])
           species$fmsy.stats <- summary(species$S[species$idx,2])
           species$m.stats <- summary(species$S[species$idx,1])
@@ -186,7 +187,7 @@ compare_re <- function(dir_vec, mod_names, Fdyn_vec, Rdyn_vec, lh_num, save, fig
           boxplot(stats, ylim=c(-3, 3), col="turquoise", xaxt="n", yaxt="n", lwd=2)
           abline(h=0, lwd=5, lty=2)
           for(i in 1:ncol(sumstats)){
-            text(x=i, y=-2.5, paste0("(", round(as.numeric(sumstats["mre",i]),2), ")\n", round(as.numeric(sumstats["pcover",i]),2)), cex=1.2)
+            text(x=i, y=-2.5, paste0("(", round(as.numeric(sumstats["mre",i]),2), ")\n", round(as.numeric(sumstats["pcover",i]),2)), cex=3)
           }
         if(ff==1){
           if(length(Rdyn_vec)>1) mtext(paste0( Rdyn_vec[rr]), side=2, line=5, font=2, cex=1.5)
@@ -206,7 +207,7 @@ compare_re <- function(dir_vec, mod_names, Fdyn_vec, Rdyn_vec, lh_num, save, fig
           boxplot(stats, ylim=c(-3, 3), col="turquoise", xaxt="n", yaxt="n", lwd=2)
           abline(h=0, lwd=5, lty=2)
           for(i in 1:ncol(sumstats)){
-            text(x=i, y=-2.5, paste0(round(as.numeric(sumstats["rmse",i]),2), "\n(", round(as.numeric(sumstats["mre",i]),2), ")\n"), cex=1.2)
+            text(x=i, y=-2.5, paste0("(", round(as.numeric(sumstats["mre",i]),2), ")\n", round(as.numeric(sumstats["pcover",i]),2)), cex=3)
           } 
     }
     mtext("Model", side=1, cex=1.5, outer=TRUE, line=4)
@@ -216,3 +217,4 @@ compare_re <- function(dir_vec, mod_names, Fdyn_vec, Rdyn_vec, lh_num, save, fig
     if(save==TRUE) dev.off()
   }
 }
+
