@@ -6,13 +6,14 @@ rm(list=ls())
 
 devtools::install_github("merrillrudd/catchMSY", build.vignettes=TRUE, dependencies=TRUE)
 library(catchMSY)
+library(dirichlet)
 
 ##############################################################
 ##### --------------- directories -----------------------#####
 ##############################################################
 
-# main_dir <- "F:\\Merrill\\Git_Projects\\CatchMSY_test"
-main_dir <- "C:\\Git_Projects\\CatchMSY_test"
+main_dir <- "F:\\Merrill\\Git_Projects\\CatchMSY_test"
+# main_dir <- "C:\\Git_Projects\\CatchMSY_test"
 source(file.path(main_dir, "R", "test_functions.R"))
 
 ## location of external data
@@ -49,6 +50,9 @@ hake$dfPriorInfo$par2[3] = quantile(hake$data$catch,0.95)
 # Change selectivity
 hake$sel50 <- 4.0
 hake$sel95 <- 5.0
+
+## change recruitment variation
+hake$sigma_r <- 0.6
 
 ## age at 50% and 95% selectivity
 selexPriorInfo <- data.frame("id"=4, "dist"="lnorm", "par1"=log(hake$sel50), "par2"=0.1*hake$sel50, "log"=TRUE, "stringAsFactors"=FALSE)
@@ -147,9 +151,6 @@ M1 <- sir.sid(M1, selex=TRUE, ncores)
 
 # Get MSY statistics
 M1$msy.stats <- summary(M1$S[M1$idx,3])
-
-plot(as.numeric(as.vector(unlist(M1$zt)))) - as.numeric(M1$zbar[1,1]))
-abline(h=0)
 
 # Narrow down samples
 M1_cols <- rep("black", nsamp)
@@ -316,7 +317,7 @@ dev.off()
 #### ---------- catch + length composition --------------#####
 ### ess cannot go beyond about 10
 M4 <- hake
-M4$data <- cbind(M4$data[,c("year","catch")], LC, "ess"=rep(10, nrow(LC)))
+M4$data <- cbind(M4$data[,c("year","catch")], LC)
 
 # run model with each sample
 M4 <- sir.sid(M4,selex=TRUE,ncores)
@@ -367,7 +368,7 @@ dev.off()
 #### ---------- catch + length composition + index -----------#####
 
 M5 <- hake
-M5$data <- cbind(M5$data[,c("year","catch", "index", "index.lse")], LC, "ess"=rep(10, nrow(LC)))
+M5$data <- cbind(M5$data[,c("year","catch", "index", "index.lse")], LC)
 
 # run model with each sample
 M5 <- sir.sid(M5,selex=TRUE,ncores)
