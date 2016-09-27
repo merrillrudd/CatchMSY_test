@@ -30,7 +30,7 @@ dir.create(fig_dir, showWarnings=FALSE)
 ##### -----------  self-testing 		   ------------- #####
 ##############################################################
 ## from hake demo
-nsamp <- 5000
+nsamp <- 1000
 ncores <- 1
 
 ## test that model runs
@@ -54,6 +54,10 @@ hake$sel95 <- 5.0
 ## change recruitment variation
 hake$sigma_r <- 0.6
 
+## change ages
+hake$age <- 1:30
+
+
 ## age at 50% and 95% selectivity
 selexPriorInfo <- data.frame("id"=4, "dist"="lnorm", "par1"=log(hake$sel50), "par2"=0.1*hake$sel50, "log"=TRUE, "stringAsFactors"=FALSE)
 hake$dfPriorInfo <- rbind.data.frame(hake$dfPriorInfo, selexPriorInfo)
@@ -61,6 +65,14 @@ hake$dfPriorInfo <- rbind.data.frame(hake$dfPriorInfo, selexPriorInfo)
 # Generate ransome samples from dfPriorInfo
 hake <- sample.sid(sID=hake, selex=TRUE, n=nsamp)
 colnames(hake$S) <- c("M", "Fmsy", "MSY", "sel50")
+
+## simulate mean length and length composition
+OM <- hake
+OM$la.cv <- 0.10
+OM_new <- catchMSYModel(OM)
+LC <- t(OM_new$LF)
+ML <- OM_new$ML
+
 
 png(file.path(fig_dir, "sampling_space_scatter.png"), width=10, height=8, units="in", res=200)
 pairs(hake$S, gap=0, pch=20, cex.axis=1.3)
@@ -98,7 +110,7 @@ M0 <- hake
 M0$data <- M0$data[,c("year","catch")]
 
 # run model with each sample
-M0      <- sir.sid(M0, selex=TRUE, ncores)
+M0      <- sir.sid(M0, selex=FALSE, ncores)
 
 # Get MSY statistics
 M0$msy.stats <- summary(M0$S[M0$idx,3])
@@ -196,13 +208,6 @@ dev.off()
 ##### -----------  further development ----------------- #####
 ##### -----------  demonstrate new routines------------- #####
 ##############################################################
-
-## simulate mean length and length composition
-OM <- hake
-OM$la.cv <- 0.10
-OM_new <- catchMSYModel(OM)
-LC <- t(OM_new$LF)
-ML <- OM_new$ML
 
 
 #### ------------- catch + mean length ------------------#####
@@ -320,7 +325,7 @@ M4 <- hake
 M4$data <- cbind(M4$data[,c("year","catch")], LC)
 
 # run model with each sample
-M4 <- sir.sid(M4,selex=TRUE,ncores)
+M4 <- sir.sid(M4,selex=FALSE,ncores)
 
 # Get MSY statistics
 M4$msy.stats <- summary(M4$S[M4$idx,3])
