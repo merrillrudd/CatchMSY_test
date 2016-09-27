@@ -6,7 +6,6 @@ rm(list=ls())
 
 devtools::install_github("merrillrudd/catchMSY", build.vignettes=TRUE, dependencies=TRUE)
 library(catchMSY)
-library(dirichlet)
 
 ##############################################################
 ##### --------------- directories -----------------------#####
@@ -23,18 +22,12 @@ data_dir <- file.path(main_dir, "inst", "extdata")
 fig_dir <- file.path(main_dir, "figs")
 dir.create(fig_dir, showWarnings=FALSE)
 
-
-
 ##############################################################
-##### -----------  demonstrations 	   ----------------- #####
-##### -----------  self-testing 		   ------------- #####
+##### -----------  setup hake demo 	   ----------------- #####
 ##############################################################
 ## from hake demo
-nsamp <- 1000
+nsamp <- 5000
 ncores <- 1
-
-## test that model runs
-catchMSYModel(hake)
 
 # Set parameter sampling frame
 hake$dfPriorInfo$dist[1] = "lnorm"
@@ -52,114 +45,197 @@ hake$sel50 <- 4.0
 hake$sel95 <- 5.0
 
 ## change recruitment variation
-hake$sigma_r <- 0.6
-
-## change ages
-hake$age <- 1:30
-
+# hake$sigma_r <- 0.6
 
 ## age at 50% and 95% selectivity
 selexPriorInfo <- data.frame("id"=4, "dist"="lnorm", "par1"=log(hake$sel50), "par2"=0.1*hake$sel50, "log"=TRUE, "stringAsFactors"=FALSE)
 hake$dfPriorInfo <- rbind.data.frame(hake$dfPriorInfo, selexPriorInfo)
 
-# Generate ransome samples from dfPriorInfo
-hake <- sample.sid(sID=hake, selex=TRUE, n=nsamp)
-colnames(hake$S) <- c("M", "Fmsy", "MSY", "sel50")
+## test that model runs
+hake_init <- catchMSYModel(hake)
 
+##############################################################
+##### -----------  self-testing 	   ----------------- #####
+##############################################################
 ## simulate mean length and length composition
-OM <- hake
-OM$la.cv <- 0.10
-OM_new <- catchMSYModel(OM)
-LC <- t(OM_new$LF)
-ML <- OM_new$ML
+LC0 <- t(hake_init$LF)
+ML0 <- hake_init$ML
 
+set.seed(123)
+hakeOM1 <- hake
+hakeOM1$la.cv <- 0.07
+hakeOM1$sigma_r <- 0.6
+hake1 <- catchMSYModel(hakeOM1)
+LC1 <- t(hake1$LF)
+ML1 <- hake1$ML
+
+png(file.path(fig_dir, "mean_length_lowCVgrowth.png"), height=6, width=8, res=200, units="in")
+par(mfrow=c(1,1), mar=c(5,5,2,2))
+plot(ML0, ylim=c(0, max(ML1)*1.2), xaxs="i", yaxs="i", cex=1.6, lwd=2, type="o", pch=17, xlab="Year", ylab="Mean length", cex.lab=1.5, cex.axis=1.3)
+lines(ML1, type="o", pch=19, col="blue", lwd=2)
+dev.off()
+
+png(file.path(fig_dir, "length_comp_lowCVgrowth.png"), height=10, width=12, res=200, units="in")
+par(mfrow=c(5,5), mar=c(0,0,0,0), omi=c(1,1,0.2,0.2))
+for(i in 1:nrow(LC1)){
+	plot(LC0[i,], xaxt="n", yaxt="n", ylim=c(0,50), pch=19)
+	lines(LC1[i,],lwd=2, col="blue")
+	if(i %in% seq(1,23,by=5)) axis(2, las=2)
+	if(i %in% 21:23) axis(1)
+}
+mtext(side=1, "Length bin (cm)", cex=1.5, outer=TRUE, line=3)
+mtext(side=2, "Frequency", cex=1.5, outer=TRUE, line=3)
+dev.off()
+
+set.seed(123)
+hakeOM2 <- hake
+hakeOM2$la.cv <- 0.14
+hakeOM2$sigma_r <- 0.6
+hake2 <- catchMSYModel(hakeOM2)
+LC2 <- t(hake2$LF)
+ML2 <- hake2$ML
+
+png(file.path(fig_dir, "mean_length_SigmaR.png"), height=6, width=8, res=200, units="in")
+par(mfrow=c(1,1), mar=c(5,5,2,2))
+plot(ML0, ylim=c(0, max(ML2)*1.2), xaxs="i", yaxs="i", cex=1.6, lwd=2, type="o", pch=17, xlab="Year", ylab="Mean length", cex.lab=1.5, cex.axis=1.3)
+lines(ML2, type="o", pch=19, col="blue", lwd=2)
+dev.off()
+
+png(file.path(fig_dir, "length_comp_SigmaR.png"), height=10, width=12, res=200, units="in")
+par(mfrow=c(5,5), mar=c(0,0,0,0), omi=c(1,1,0.2,0.2))
+for(i in 1:nrow(LC2)){
+	plot(LC0[i,], xaxt="n", yaxt="n", ylim=c(0,50), pch=19)
+	lines(LC2[i,],lwd=2, col="blue")
+	if(i %in% seq(1,23,by=5)) axis(2, las=2)
+	if(i %in% 21:23) axis(1)
+}
+mtext(side=1, "Length bin (cm)", cex=1.5, outer=TRUE, line=3)
+mtext(side=2, "Frequency", cex=1.5, outer=TRUE, line=3)
+dev.off()
+
+##############################################################
+##### -----------  model to use 	   ----------------- #####
+##### growth variation = 0.14		   ----------------- #####
+##### recruitment variation  = 0.6	   ----------------- #####
+##### observation error mean lenth = 0.6 --------------- #####
+##############################################################
+hakeOM <- hakeOM2
+LC <- LC2
+ML <- ML2
+
+# Generate random samples from dfPriorInfo
+hakeOM <- sample.sid(sID=hakeOM, selex=TRUE, n=nsamp)
+colnames(hakeOM$S) <- c("M", "Fmsy", "MSY", "sel50")
 
 png(file.path(fig_dir, "sampling_space_scatter.png"), width=10, height=8, units="in", res=200)
-pairs(hake$S, gap=0, pch=20, cex.axis=1.3)
+pairs(hakeOM$S, gap=0, pch=20, cex.axis=1.3)
 dev.off()
 
 ## histogram
 png(file.path(fig_dir, "MSY_sampling_space_hist.png"), width=10, height=6, units="in", res=200)
-xlim <- c(0, hake$dfPriorInfo$par2[3]*1.2)
+xlim <- c(0, hakeOM$dfPriorInfo$par2[3]*1.2)
 ylim <- c(0, nsamp/10)
-hist(hake$S[,"MSY"], col="gray", lty="blank", xlim=xlim, ylim=ylim, xlab="MSY", ylab="Frequency", main="")
+hist(hakeOM$S[,"MSY"], col="gray", lty="blank", xlim=xlim, ylim=ylim, xlab="MSY", ylab="Frequency", main="")
 legend("topright", legend=c("Sampling space"), pch=15, col="gray")
 dev.off()
 
 png(file.path(fig_dir, "sel50_sampling_space_hist.png"), width=10, height=6, units="in", res=200)
-xlim <- c(0, exp(hake$dfPriorInfo$par1[4])*3)
+xlim <- c(0, exp(hakeOM$dfPriorInfo$par1[4])*3)
 ylim <- c(0, nsamp)
-hist(hake$S[,"sel50"], col="gray", lty="blank", xlim=xlim, ylim=ylim, xlab="sel50", ylab="Frequency", main="")
+hist(hakeOM$S[,"sel50"], col="gray", lty="blank", xlim=xlim, ylim=ylim, xlab="sel50", ylab="Frequency", main="")
 legend("topright", legend=c("Sampling space"), pch=15, col="gray")
 dev.off()
 
 ## boxplot
 png(file.path(fig_dir, "MSY_boxplot_1.png"), width=10, height=6, units="in", res=200)
-boxplot(hake$S[,"MSY"], col="gray", lwd=2, xlim=c(0,8), ylim=c(hake$dfPriorInfo$par1[3], hake$dfPriorInfo$par2[3]))
+boxplot(hakeOM$S[,"MSY"], col="gray", lwd=2, xlim=c(0,8), ylim=c(hakeOM$dfPriorInfo$par1[3], hakeOM$dfPriorInfo$par2[3]))
 dev.off()
 
 png(file.path(fig_dir, "sel50_boxplot_1.png"), width=10, height=6, units="in", res=200)
-boxplot(hake$S[,"sel50"], col="gray", lwd=2, xlim=c(0,8), ylim=c(0,exp(hake$dfPriorInfo$par1[4]*2)))
+boxplot(hakeOM$S[,"sel50"], col="gray", lwd=2, xlim=c(0,8), ylim=c(0,exp(hakeOM$dfPriorInfo$par1[4]*2)))
 dev.off()
 
 
 #### ------------- catch-only method -------------------#####
-M0 <- hake
+M0 <- hakeOM
 
 # year and catch data only
 M0$data <- M0$data[,c("year","catch")]
 
 # run model with each sample
-M0      <- sir.sid(M0, selex=FALSE, ncores)
+M0      <- sir.sid(M0, selex=TRUE, ncores)
+M0_noSX <- sir.sid(M0, selex=FALSE, ncores)
 
 # Get MSY statistics
 M0$msy.stats <- summary(M0$S[M0$idx,3])
 
 # Narrow down samples
 M0_cols <- rep("black", nsamp)
-M0_cols[which(as.numeric(unlist(M0$code))>0)] <- "goldenrod"
+M0_cols[which(as.numeric(unlist(M0$code))>0)] <- "red"
 png(file.path(fig_dir, "catch_only_scatter.png"), width=10, height=8, units="in", res=200)
 pairs(M0$S, gap=0, col=M0_cols,pch=20)
 dev.off()
 
 ## histogram
 png(file.path(fig_dir, "MSY_catchonly_hist.png"), width=10, height=6, units="in", res=200)
-xlim <- c(0, hake$dfPriorInfo$par2[3]*1.2)
+xlim <- c(0, hakeOM$dfPriorInfo$par2[3]*1.2)
 ylim <- c(0, nsamp/10)
-hist(hake$S[,"MSY"], col="gray", lty="blank", xlim=xlim, ylim=ylim, xlab="MSY", ylab="Frequency", main="")
+hist(hakeOM$S[,"MSY"], col="gray", lty="blank", xlim=xlim, ylim=ylim, xlab="MSY", ylab="Frequency", main="")
 par(new=TRUE)
 hist(M0$S[M0$idx,"MSY"], col="#AA000050", lty="blank", xlim=xlim, ylim=ylim, xlab="", ylab="", main="")
 legend("topright", legend=c("Sampling space", "Catch only"), pch=15, col=c("gray", "#AA000050"))
 dev.off()
 
+## histogram
+png(file.path(fig_dir, "MSY_catchonlyNoSX_hist.png"), width=10, height=6, units="in", res=200)
+xlim <- c(0, hakeOM$dfPriorInfo$par2[3]*1.2)
+ylim <- c(0, nsamp/10)
+hist(hakeOM$S[,"MSY"], col="gray", lty="blank", xlim=xlim, ylim=ylim, xlab="MSY", ylab="Frequency", main="")
+par(new=TRUE)
+hist(M0_noSX$S[M0_noSX$idx,"MSY"], col="#AA000050", lty="blank", xlim=xlim, ylim=ylim, xlab="", ylab="", main="")
+legend("topright", legend=c("Sampling space", "Catch only"), pch=15, col=c("gray", "#AA000050"))
+dev.off()
+
+
 png(file.path(fig_dir, "sel50_catchonly_hist.png"), width=10, height=6, units="in", res=200)
-xlim <- c(0, exp(hake$dfPriorInfo$par1[4])*3)
+xlim <- c(0, exp(hakeOM$dfPriorInfo$par1[4])*3)
 ylim <- c(0, nsamp)
-hist(hake$S[,"sel50"], col="gray", lty="blank", xlim=xlim, ylim=ylim, xlab="sel50", ylab="Frequency", main="")
+hist(hakeOM$S[,"sel50"], col="gray", lty="blank", xlim=xlim, ylim=ylim, xlab="sel50", ylab="Frequency", main="")
 par(new=TRUE)
 hist(M0$S[M0$idx,"sel50"], col="#AA000050", lty="blank", xlim=xlim, ylim=ylim, xlab="", ylab="", main="")
 legend("topright", legend=c("Sampling space", "Catch only"), pch=15, col=c("gray", "#AA000050"))
 dev.off()
 
+
+png(file.path(fig_dir, "sel50_catchonlyNoSX_hist.png"), width=10, height=6, units="in", res=200)
+xlim <- c(0, exp(hakeOM$dfPriorInfo$par1[4])*3)
+ylim <- c(0, nsamp)
+hist(hakeOM$S[,"sel50"], col="gray", lty="blank", xlim=xlim, ylim=ylim, xlab="sel50", ylab="Frequency", main="")
+par(new=TRUE)
+hist(M0_noSX$S[M0_noSX$idx,"sel50"], col="#AA000050", lty="blank", xlim=xlim, ylim=ylim, xlab="", ylab="", main="")
+legend("topright", legend=c("Sampling space", "Catch only"), pch=15, col=c("gray", "#AA000050"))
+dev.off()
+
 ## boxplot
 png(file.path(fig_dir, "MSY_boxplot_2.png"), width=10, height=6, units="in", res=200)
-boxplot(hake$S[,"MSY"], M0$S[M0$idx,"MSY"], col=c("gray","goldenrod"), lwd=2, xlim=c(0,8), ylim=c(hake$dfPriorInfo$par1[3], hake$dfPriorInfo$par2[3]))
+boxplot(hakeOM$S[,"MSY"], M0$S[M0$idx,"MSY"], col=c("gray","red"), lwd=2, xlim=c(0,8), ylim=c(hakeOM$dfPriorInfo$par1[3], hakeOM$dfPriorInfo$par2[3]))
 dev.off()
 
 png(file.path(fig_dir, "sel50_boxplot_2.png"), width=10, height=6, units="in", res=200)
-boxplot(hake$S[,"sel50"], M0$S[M0$idx,"sel50"], col=c("gray","goldenrod"), lwd=2, xlim=c(0,8), ylim=c(0,exp(hake$dfPriorInfo$par1[4]*2)))
+boxplot(hakeOM$S[,"sel50"], M0$S[M0$idx,"sel50"], col=c("gray","red"), lwd=2, xlim=c(0,8), ylim=c(0,exp(hakeOM$dfPriorInfo$par1[4]*2)))
 dev.off()
 
 
 
 #### ------------- catch + index ------------------------#####
-M1 <- hake
+M1 <- hakeOM
 
 # year, catch, and index
 M1$data <- M1$data[,c("year","catch","index","index.lse")]
 
 # run model with each sample
 M1 <- sir.sid(M1, selex=TRUE, ncores)
+M1_noSX <- sir.sid(M1, selex=FALSE, ncores)
 
 # Get MSY statistics
 M1$msy.stats <- summary(M1$S[M1$idx,3])
@@ -167,16 +243,16 @@ M1$msy.stats <- summary(M1$S[M1$idx,3])
 # Narrow down samples
 M1_cols <- rep("black", nsamp)
 M1_cols[which(1:nsamp %in% unique(M1$idx)==FALSE)] <- "steelblue"
-M1_cols[which(as.numeric(unlist(M0$code))>0)] <- "goldenrod"
+M1_cols[which(as.numeric(unlist(M0$code))>0)] <- "red"
 png(file.path(fig_dir, "catch_index_scatter.png"), width=10, height=8, units="in", res=200)
 pairs(M1$S, gap=0, col=M1_cols,pch=20)
 dev.off()
 
 ## histogram
 png(file.path(fig_dir, "MSY_catchindex_hist.png"), width=10, height=6, units="in", res=200)
-xlim <- c(0, hake$dfPriorInfo$par2[3]*1.2)
+xlim <- c(0, hakeOM$dfPriorInfo$par2[3]*1.2)
 ylim <- c(0, nsamp/10)
-hist(hake$S[,"MSY"], col="gray", lty="blank", xlim=xlim, ylim=ylim, xlab="MSY", ylab="Frequency", main="")
+hist(hakeOM$S[,"MSY"], col="gray", lty="blank", xlim=xlim, ylim=ylim, xlab="MSY", ylab="Frequency", main="")
 par(new=TRUE)
 hist(M0$S[M0$idx,"MSY"], col="#AA000050", lty="blank", xlim=xlim, ylim=ylim, xlab="", ylab="", main="")
 par(new=TRUE)
@@ -184,10 +260,21 @@ hist(M1$S[M1$idx,"MSY"], col="#0000AA50", lty="blank", xlim=xlim, ylim=ylim, xla
 legend("topright", legend=c("Sampling space", "Catch only", "Catch+Index"), pch=15, col=c("gray", "#AA000050", "#0000AA50"))
 dev.off()
 
+png(file.path(fig_dir, "MSY_catchindexNoSX_hist.png"), width=10, height=6, units="in", res=200)
+xlim <- c(0, hakeOM$dfPriorInfo$par2[3]*1.2)
+ylim <- c(0, nsamp/10)
+hist(hakeOM$S[,"MSY"], col="gray", lty="blank", xlim=xlim, ylim=ylim, xlab="MSY", ylab="Frequency", main="")
+par(new=TRUE)
+hist(M0_noSX$S[M0_noSX$idx,"MSY"], col="#AA000050", lty="blank", xlim=xlim, ylim=ylim, xlab="", ylab="", main="")
+par(new=TRUE)
+hist(M1_noSX$S[M1_noSX$idx,"MSY"], col="#0000AA50", lty="blank", xlim=xlim, ylim=ylim, xlab="", ylab="", main="")
+legend("topright", legend=c("Sampling space", "Catch only", "Catch+Index"), pch=15, col=c("gray", "#AA000050", "#0000AA50"))
+dev.off()
+
 png(file.path(fig_dir, "sel50_catchindex_hist.png"), width=10, height=6, units="in", res=200)
-xlim <- c(0, exp(hake$dfPriorInfo$par1[4])*3)
+xlim <- c(0, exp(hakeOM$dfPriorInfo$par1[4])*3)
 ylim <- c(0, nsamp)
-hist(hake$S[,"sel50"], col="gray", lty="blank", xlim=xlim, ylim=ylim, xlab="sel50", ylab="Frequency", main="")
+hist(hakeOM$S[,"sel50"], col="gray", lty="blank", xlim=xlim, ylim=ylim, xlab="sel50", ylab="Frequency", main="")
 par(new=TRUE)
 hist(M0$S[M0$idx,"sel50"], col="#AA000050", lty="blank", xlim=xlim, ylim=ylim, xlab="", ylab="", main="")
 par(new=TRUE)
@@ -195,13 +282,24 @@ hist(M1$S[M1$idx,"sel50"], col="#0000AA50", lty="blank", xlim=xlim, ylim=ylim, x
 legend("topright", legend=c("Sampling space", "Catch only", "Catch+Index"), pch=15, col=c("gray", "#AA000050", "#0000AA50"))
 dev.off()
 
+png(file.path(fig_dir, "sel50_catchindexNoSX_hist.png"), width=10, height=6, units="in", res=200)
+xlim <- c(0, exp(hakeOM$dfPriorInfo$par1[4])*3)
+ylim <- c(0, nsamp)
+hist(hakeOM$S[,"sel50"], col="gray", lty="blank", xlim=xlim, ylim=ylim, xlab="sel50", ylab="Frequency", main="")
+par(new=TRUE)
+hist(M0_noSX$S[M0_noSX$idx,"sel50"], col="#AA000050", lty="blank", xlim=xlim, ylim=ylim, xlab="", ylab="", main="")
+par(new=TRUE)
+hist(M1_noSX$S[M1_noSX$idx,"sel50"], col="#0000AA50", lty="blank", xlim=xlim, ylim=ylim, xlab="", ylab="", main="")
+legend("topright", legend=c("Sampling space", "Catch only", "Catch+Index"), pch=15, col=c("gray", "#AA000050", "#0000AA50"))
+dev.off()
+
 ## boxplot
 png(file.path(fig_dir, "MSY_boxplot_3.png"), width=10, height=6, units="in", res=200)
-boxplot(hake$S[,"MSY"], M0$S[M0$idx,"MSY"], M1$S[M1$idx,"MSY"], col=c("gray","goldenrod","steelblue"), lwd=2, xlim=c(0,8), ylim=c(hake$dfPriorInfo$par1[3], hake$dfPriorInfo$par2[3]))
+boxplot(hakeOM$S[,"MSY"], M0$S[M0$idx,"MSY"], M1$S[M1$idx,"MSY"], col=c("gray","red","steelblue"), lwd=2, xlim=c(0,8), ylim=c(hakeOM$dfPriorInfo$par1[3], hakeOM$dfPriorInfo$par2[3]))
 dev.off()
 
 png(file.path(fig_dir, "sel50_boxplot_3.png"), width=10, height=6, units="in", res=200)
-boxplot(hake$S[,"sel50"], M0$S[M0$idx,"sel50"], M1$S[M1$idx,"sel50"], col=c("gray","goldenrod","steelblue"), lwd=2, xlim=c(0,8), ylim=c(0,exp(hake$dfPriorInfo$par1[4]*2)))
+boxplot(hakeOM$S[,"sel50"], M0$S[M0$idx,"sel50"], M1$S[M1$idx,"sel50"], col=c("gray","red","steelblue"), lwd=2, xlim=c(0,8), ylim=c(0,exp(hakeOM$dfPriorInfo$par1[4]*2)))
 dev.off()
 
 ##############################################################
@@ -212,10 +310,11 @@ dev.off()
 
 #### ------------- catch + mean length ------------------#####
 
-M2 <- hake
+M2 <- hakeOM
 M2$data <- cbind(M2$data[,c("year","catch")], "meanlength"=ML, "meanlength.lse"=rep(0.6, length(ML)))
 
 M2 <- sir.sid(M2,selex=TRUE,ncores)
+M2_noSX <- sir.sid(M2, selex=FALSE, ncores)
 
 # Get MSY statistics
 M2$msy.stats <- summary(M2$S[M2$idx,3])
@@ -223,16 +322,16 @@ M2$msy.stats <- summary(M2$S[M2$idx,3])
 # Narrow down samples
 M2_cols <- rep("black", nsamp)
 M2_cols[which(1:nsamp %in% unique(M2$idx)==FALSE)] <- "violet"
-M2_cols[which(as.numeric(unlist(M0$code))>0)] <- "goldenrod"
+M2_cols[which(as.numeric(unlist(M0$code))>0)] <- "red"
 png(file.path(fig_dir, "catch_meanlen_scatter.png"), width=10, height=8, units="in", res=200)
 pairs(M2$S, gap=0, col=M2_cols,pch=20)
 dev.off()
 
 ## histogram
 png(file.path(fig_dir, "MSY_catchmeanlen_hist.png"), width=10, height=6, units="in", res=200)
-xlim <- c(0, hake$dfPriorInfo$par2[3]*1.2)
+xlim <- c(0, hakeOM$dfPriorInfo$par2[3]*1.2)
 ylim <- c(0, nsamp/10)
-hist(hake$S[,"MSY"], col="gray", lty="blank", xlim=xlim, ylim=ylim, xlab="MSY", ylab="Frequency", main="")
+hist(hakeOM$S[,"MSY"], col="gray", lty="blank", xlim=xlim, ylim=ylim, xlab="MSY", ylab="Frequency", main="")
 par(new=TRUE)
 hist(M0$S[M0$idx,"MSY"], col="#AA000050", lty="blank", xlim=xlim, ylim=ylim, xlab="", ylab="", main="")
 par(new=TRUE)
@@ -241,9 +340,9 @@ legend("topright", legend=c("Sampling space", "Catch only", "Catch+MeanLength"),
 dev.off()
 
 png(file.path(fig_dir, "sel50_catchmeanlen_hist.png"), width=10, height=6, units="in", res=200)
-xlim <- c(0, exp(hake$dfPriorInfo$par1[4])*3)
+xlim <- c(0, exp(hakeOM$dfPriorInfo$par1[4])*3)
 ylim <- c(0, nsamp)
-hist(hake$S[,"sel50"], col="gray", lty="blank", xlim=xlim, ylim=ylim, xlab="sel50", ylab="Frequency", main="")
+hist(hakeOM$S[,"sel50"], col="gray", lty="blank", xlim=xlim, ylim=ylim, xlab="sel50", ylab="Frequency", main="")
 par(new=TRUE)
 hist(M0$S[M0$idx,"sel50"], col="#AA000050", lty="blank", xlim=xlim, ylim=ylim, xlab="", ylab="", main="")
 par(new=TRUE)
@@ -254,78 +353,132 @@ dev.off()
 
 ## boxplot
 png(file.path(fig_dir, "MSY_boxplot_4.png"), width=10, height=6, units="in", res=200)
-boxplot(hake$S[,"MSY"], M0$S[M0$idx,"MSY"], M1$S[M1$idx,"MSY"], M2$S[M2$idx,"MSY"], col=c("gray","goldenrod","steelblue", "violet"), lwd=2, xlim=c(0,8), ylim=c(hake$dfPriorInfo$par1[3], hake$dfPriorInfo$par2[3]))
+boxplot(hakeOM$S[,"MSY"], M0$S[M0$idx,"MSY"], M2$S[M2$idx,"MSY"], col=c("gray","red","forestgreen"), lwd=2, xlim=c(0,8), ylim=c(hakeOM$dfPriorInfo$par1[3], hakeOM$dfPriorInfo$par2[3]))
 dev.off()
 
 png(file.path(fig_dir, "sel50_boxplot_4.png"), width=10, height=6, units="in", res=200)
-boxplot(hake$S[,"sel50"], M0$S[M0$idx,"sel50"], M1$S[M1$idx,"sel50"], M2$S[M2$idx,"sel50"], col=c("gray","goldenrod","steelblue", "violet"), lwd=2, xlim=c(0,8), ylim=c(0,exp(hake$dfPriorInfo$par1[4]*2)))
+boxplot(hakeOM$S[,"sel50"], M0$S[M0$idx,"sel50"], M2$S[M2$idx,"sel50"],col=c("gray","red","forestgreen"), lwd=2, xlim=c(0,8), ylim=c(0,exp(hakeOM$dfPriorInfo$par1[4]*2)))
+dev.off()
+
+
+
+
+#### ------------- catch + mean length ------------------#####
+### lower observation error!
+M2_v2 <- hakeOM
+M2_v2$data <- cbind(M2_v2$data[,c("year","catch")], "meanlength"=ML, "meanlength.lse"=rep(0.2, length(ML)))
+
+M2_v2 <- sir.sid(M2_v2,selex=TRUE,ncores)
+M2_v2_noSX <- sir.sid(M2_v2, selex=FALSE, ncores)
+
+# Get MSY statistics
+M2_v2$msy.stats <- summary(M2_v2$S[M2_v2$idx,3])
+
+# Narrow down samples
+M2_v2_cols <- rep("black", nsamp)
+M2_v2_cols[which(1:nsamp %in% unique(M2_v2$idx)==FALSE)] <- "violet"
+M2_v2_cols[which(as.numeric(unlist(M0$code))>0)] <- "red"
+png(file.path(fig_dir, "catch_meanlen_scatter.png"), width=10, height=8, units="in", res=200)
+pairs(M2_v2$S, gap=0, col=M2_v2_cols,pch=20)
+dev.off()
+
+## histogram
+png(file.path(fig_dir, "MSY_catchmeanlen_LowObsErr_hist.png"), width=10, height=6, units="in", res=200)
+xlim <- c(0, hakeOM$dfPriorInfo$par2[3]*1.2)
+ylim <- c(0, nsamp/10)
+hist(hakeOM$S[,"MSY"], col="gray", lty="blank", xlim=xlim, ylim=ylim, xlab="MSY", ylab="Frequency", main="")
+par(new=TRUE)
+hist(M0$S[M0$idx,"MSY"], col="#AA000050", lty="blank", xlim=xlim, ylim=ylim, xlab="", ylab="", main="")
+par(new=TRUE)
+hist(M2_v2$S[M2_v2$idx,"MSY"], col="#00AA0050", lty="blank", xlim=xlim, ylim=ylim, xlab="", ylab="", main="")
+legend("topright", legend=c("Sampling space", "Catch only", "Catch+MeanLength"), pch=15, col=c("gray", "#AA000050", "#00AA0050"))
+dev.off()
+
+png(file.path(fig_dir, "sel50_catchmeanlen_LowObsErr_hist.png"), width=10, height=6, units="in", res=200)
+xlim <- c(0, exp(hakeOM$dfPriorInfo$par1[4])*3)
+ylim <- c(0, nsamp)
+hist(hakeOM$S[,"sel50"], col="gray", lty="blank", xlim=xlim, ylim=ylim, xlab="sel50", ylab="Frequency", main="")
+par(new=TRUE)
+hist(M0$S[M0$idx,"sel50"], col="#AA000050", lty="blank", xlim=xlim, ylim=ylim, xlab="", ylab="", main="")
+par(new=TRUE)
+hist(M2_v2$S[M2_v2$idx,"sel50"], col="#00AA0050", lty="blank", xlim=xlim, ylim=ylim, xlab="", ylab="", main="")
+legend("topright", legend=c("Sampling space", "Catch only", "Catch+MeanLength"), pch=15, col=c("gray", "#AA000050", "#00AA0050"))
+dev.off()
+
+
+## boxplot
+png(file.path(fig_dir, "MSY_boxplot_4_v2.png"), width=10, height=6, units="in", res=200)
+boxplot(hakeOM$S[,"MSY"], M0$S[M0$idx,"MSY"], M2_v2$S[M2_v2$idx,"MSY"], col=c("gray","red","forestgreen"), lwd=2, xlim=c(0,8), ylim=c(hakeOM$dfPriorInfo$par1[3], hakeOM$dfPriorInfo$par2[3]))
+dev.off()
+
+png(file.path(fig_dir, "sel50_boxplot_4_v2.png"), width=10, height=6, units="in", res=200)
+boxplot(hakeOM$S[,"sel50"], M0$S[M0$idx,"sel50"], M2_v2$S[M2_v2$idx,"sel50"],col=c("gray","red","forestgreen"), lwd=2, xlim=c(0,8), ylim=c(0,exp(hakeOM$dfPriorInfo$par1[4]*2)))
 dev.off()
 
 #### ------------- catch + mean length + index ------------------#####
 
-M3 <- hake
+M3 <- hakeOM
 
 # year, catch, and index
 M3$data <- cbind(M3$data[,c("year","catch","index","index.lse")], "meanlength"=ML, "meanlength.lse"=rep(0.6, length(ML))) 
 
 # run model with each sample
-M3 <- sir.sid(M3, ncores)
+M3 <- sir.sid(M3, selex=TRUE, ncores)
+M3_noSX <- sir.sid(M3, selex=FALSE, ncores)
 
 # Get MSY statistics
 M3$msy.stats <- summary(M3$S[M3$idx,3])
+
 
 # Narrow down samples
 M3_cols <- rep("black", nsamp)
 M3_cols[which(1:nsamp %in% unique(M3$idx)==FALSE)] <- "purple"
 M3_cols[which(1:nsamp %in% unique(M1$idx)==FALSE)] <- "steelblue"
-M3_cols[which(as.numeric(unlist(M0$code))>0)] <- "goldenrod"
+M3_cols[which(as.numeric(unlist(M0$code))>0)] <- "red"
 png(file.path(fig_dir, "catch_indexmeanlen_scatter.png"), width=10, height=8, units="in", res=200)
 pairs(M3$S, gap=0, col=M3_cols,pch=20)
 dev.off()
 
 ## histogram
 png(file.path(fig_dir, "MSY_catchindexmeanlen_hist.png"), width=10, height=6, units="in", res=200)
-xlim <- c(0, hake$dfPriorInfo$par2[3]*1.2)
+xlim <- c(0, hakeOM$dfPriorInfo$par2[3]*1.2)
 ylim <- c(0, nsamp/10)
-hist(hake$S[,"MSY"], col="gray", lty="blank", xlim=xlim, ylim=ylim, xlab="MSY", ylab="Frequency", main="")
-par(new=TRUE)
-hist(M0$S[M0$idx,"MSY"], col="#AA000050", lty="blank", xlim=xlim, ylim=ylim, xlab="", ylab="", main="")
+hist(hakeOM$S[,"MSY"], col="gray", lty="blank", xlim=xlim, ylim=ylim, xlab="MSY", ylab="Frequency", main="")
 par(new=TRUE)
 hist(M1$S[M1$idx,"MSY"], col="#0000AA50", lty="blank", xlim=xlim, ylim=ylim, xlab="", ylab="", main="")
 par(new=TRUE)
 hist(M3$S[M3$idx,"MSY"], col="#00AA0050", lty="blank", xlim=xlim, ylim=ylim, xlab="", ylab="", main="")
-legend("topright", legend=c("Sampling space", "Catch only", "Catch+Index", "Catch+Index+MeanLength"), pch=15, col=c("gray", "#AA000050", "#0000AA50", "#00AA0050"))
+legend("topright", legend=c("Sampling space","Catch+Index", "Catch+Index+MeanLength"), pch=15, col=c("gray",  "#0000AA50", "#00AA0050"))
 dev.off()
 
 png(file.path(fig_dir, "sel50_catchindexmeanlen_hist.png"), width=10, height=6, units="in", res=200)
-xlim <- c(0, exp(hake$dfPriorInfo$par1[4])*3)
+xlim <- c(0, exp(hakeOM$dfPriorInfo$par1[4])*3)
 ylim <- c(0, nsamp)
-hist(hake$S[,"sel50"], col="gray", lty="blank", xlim=xlim, ylim=ylim, xlab="sel50", ylab="Frequency", main="")
-par(new=TRUE)
-hist(M0$S[M0$idx,"sel50"], col="#AA000050", lty="blank", xlim=xlim, ylim=ylim, xlab="", ylab="", main="")
+hist(hakeOM$S[,"sel50"], col="gray", lty="blank", xlim=xlim, ylim=ylim, xlab="sel50", ylab="Frequency", main="")
 par(new=TRUE)
 hist(M1$S[M1$idx,"sel50"], col="#0000AA50", lty="blank", xlim=xlim, ylim=ylim, xlab="", ylab="", main="")
 par(new=TRUE)
 hist(M3$S[M3$idx,"sel50"], col="#00AA0050", lty="blank", xlim=xlim, ylim=ylim, xlab="", ylab="", main="")
-legend("topright", legend=c("Sampling space", "Catch only", "Catch+Index", "Catch+Index+MeanLength"), pch=15, col=c("gray", "#AA000050", "#0000AA50", "#00AA0050"))
+legend("topright", legend=c("Sampling space","Catch+Index", "Catch+Index+MeanLength"), pch=15, col=c("gray",  "#0000AA50", "#00AA0050"))
 dev.off()
 
 ## boxplot
 png(file.path(fig_dir, "MSY_boxplot_5.png"), width=10, height=6, units="in", res=200)
-boxplot(hake$S[,"MSY"], M0$S[M0$idx,"MSY"], M1$S[M1$idx,"MSY"], M2$S[M2$idx,"MSY"], M3$S[M3$idx,"MSY"], col=c("gray","goldenrod","steelblue", "violet", "purple"), lwd=2, xlim=c(0,8), ylim=c(hake$dfPriorInfo$par1[3], hake$dfPriorInfo$par2[3]))
+boxplot(hakeOM$S[,"MSY"], M1$S[M1$idx,"MSY"],M3$S[M3$idx,"MSY"], col=c("gray","steelblue", "forestgreen"), lwd=2, xlim=c(0,8), ylim=c(hakeOM$dfPriorInfo$par1[3], hakeOM$dfPriorInfo$par2[3]))
 dev.off()
 
 png(file.path(fig_dir, "sel50_boxplot_5.png"), width=10, height=6, units="in", res=200)
-boxplot(hake$S[,"sel50"], M0$S[M0$idx,"sel50"], M1$S[M1$idx,"sel50"], M2$S[M2$idx,"sel50"], M3$S[M3$idx,"sel50"], col=c("gray","goldenrod","steelblue", "violet", "purple"), lwd=2, xlim=c(0,8), ylim=c(0,exp(hake$dfPriorInfo$par1[4]*2)))
+boxplot(hakeOM$S[,"sel50"], M1$S[M1$idx,"sel50"], M3$S[M3$idx,"sel50"], col=c("gray","steelblue","forestgreen"), lwd=2, xlim=c(0,8), ylim=c(0,exp(hakeOM$dfPriorInfo$par1[4]*2)))
 dev.off()
 
 #### ---------- catch + length composition --------------#####
 ### ess cannot go beyond about 10
-M4 <- hake
+M4 <- hakeOM
 M4$data <- cbind(M4$data[,c("year","catch")], LC)
 
 # run model with each sample
-M4 <- sir.sid(M4,selex=FALSE,ncores)
+M4 <- sir.sid(M4,selex=TRUE,ncores)
+M4_noSX <- sir.sid(M4, selex=FALSE, ncores)
 
 # Get MSY statistics
 M4$msy.stats <- summary(M4$S[M4$idx,3])
@@ -333,16 +486,16 @@ M4$msy.stats <- summary(M4$S[M4$idx,3])
 # Narrow down samples
 M4_cols <- rep("black", nsamp)
 M4_cols[which(1:nsamp %in% unique(M4$idx)==FALSE)] <- "green"
-M4_cols[which(as.numeric(unlist(M0$code))>0)] <- "goldenrod"
+M4_cols[which(as.numeric(unlist(M0$code))>0)] <- "red"
 png(file.path(fig_dir, "catch_lencomp_scatter.png"), width=10, height=8, units="in", res=200)
 pairs(M4$S, gap=0, col=M4_cols,pch=20)
 dev.off()
 
 ## histogram
 png(file.path(fig_dir, "MSY_catchlencomp_hist.png"), width=10, height=6, units="in", res=200)
-xlim <- c(0, hake$dfPriorInfo$par2[3]*1.2)
+xlim <- c(0, hakeOM$dfPriorInfo$par2[3]*1.2)
 ylim <- c(0, nsamp/10)
-hist(hake$S[,"MSY"], col="gray", lty="blank", xlim=xlim, ylim=ylim, xlab="MSY", ylab="Frequency", main="")
+hist(hakeOM$S[,"MSY"], col="gray", lty="blank", xlim=xlim, ylim=ylim, xlab="MSY", ylab="Frequency", main="")
 par(new=TRUE)
 hist(M0$S[M0$idx,"MSY"], col="#AA000050", lty="blank", xlim=xlim, ylim=ylim, xlab="", ylab="", main="")
 par(new=TRUE)
@@ -351,9 +504,9 @@ legend("topright", legend=c("Sampling space", "Catch only", "Catch+LengthComp"),
 dev.off()
 
 png(file.path(fig_dir, "sel50_catchlencomp_hist.png"), width=10, height=6, units="in", res=200)
-xlim <- c(0, exp(hake$dfPriorInfo$par1[4])*3)
+xlim <- c(0, exp(hakeOM$dfPriorInfo$par1[4])*3)
 ylim <- c(0, nsamp)
-hist(hake$S[,"sel50"], col="gray", lty="blank", xlim=xlim, ylim=ylim, xlab="sel50", ylab="Frequency", main="")
+hist(hakeOM$S[,"sel50"], col="gray", lty="blank", xlim=xlim, ylim=ylim, xlab="sel50", ylab="Frequency", main="")
 par(new=TRUE)
 hist(M0$S[M0$idx,"sel50"], col="#AA000050", lty="blank", xlim=xlim, ylim=ylim, xlab="", ylab="", main="")
 par(new=TRUE)
@@ -364,15 +517,15 @@ dev.off()
 
 ## boxplot
 png(file.path(fig_dir, "MSY_boxplot_6.png"), width=10, height=6, units="in", res=200)
-boxplot(hake$S[,"MSY"], M0$S[M0$idx,"MSY"], M1$S[M1$idx,"MSY"], M2$S[M2$idx,"MSY"], M3$S[M3$idx,"MSY"], M4$S[M4$idx,"MSY"], col=c("gray","goldenrod","steelblue", "violet", "purple", "lawngreen"), lwd=2, xlim=c(0,8), ylim=c(hake$dfPriorInfo$par1[3], hake$dfPriorInfo$par2[3]))
+boxplot(hakeOM$S[,"MSY"], M0$S[M0$idx,"MSY"], M1$S[M1$idx,"MSY"], M2$S[M2$idx,"MSY"], M3$S[M3$idx,"MSY"], M4$S[M4$idx,"MSY"], col=c("gray","red","steelblue", "violet", "purple", "lawngreen"), lwd=2, xlim=c(0,8), ylim=c(hakeOM$dfPriorInfo$par1[3], hakeOM$dfPriorInfo$par2[3]))
 dev.off()
 
 png(file.path(fig_dir, "sel50_boxplot_6.png"), width=10, height=6, units="in", res=200)
-boxplot(hake$S[,"sel50"], M0$S[M0$idx,"sel50"], M1$S[M1$idx,"sel50"], M2$S[M2$idx,"sel50"], M3$S[M3$idx,"sel50"], M4$S[M4$idx,"sel50"], col=c("gray","goldenrod","steelblue", "violet", "purple", "lawngreen"), lwd=2, xlim=c(0,8), ylim=c(0,exp(hake$dfPriorInfo$par1[4]*2)))
+boxplot(hakeOM$S[,"sel50"], M0$S[M0$idx,"sel50"], M1$S[M1$idx,"sel50"], M2$S[M2$idx,"sel50"], M3$S[M3$idx,"sel50"], M4$S[M4$idx,"sel50"], col=c("gray","red","steelblue", "violet", "purple", "lawngreen"), lwd=2, xlim=c(0,8), ylim=c(0,exp(hakeOM$dfPriorInfo$par1[4]*2)))
 dev.off()
 #### ---------- catch + length composition + index -----------#####
 
-M5 <- hake
+M5 <- hakeOM
 M5$data <- cbind(M5$data[,c("year","catch", "index", "index.lse")], LC)
 
 # run model with each sample
@@ -385,16 +538,16 @@ M5$msy.stats <- summary(M5$S[M5$idx,3])
 M5_cols <- rep("black", nsamp)
 M5_cols[which(1:nsamp %in% unique(M5$idx)==FALSE)] <- "forestgreen"
 M5_cols[which(1:nsamp %in% unique(M1$idx)==FALSE)] <- "steelblue"
-M5_cols[which(as.numeric(unlist(M0$code))>0)] <- "goldenrod"
+M5_cols[which(as.numeric(unlist(M0$code))>0)] <- "red"
 png(file.path(fig_dir, "catch_indexlencomp_scatter.png"), width=10, height=8, units="in", res=200)
 pairs(M5$S, gap=0, col=M5_cols,pch=20)
 dev.off()
 
 ## histogram
 png(file.path(fig_dir, "MSY_catchindexlencomp_hist.png"), width=10, height=6, units="in", res=200)
-xlim <- c(0, hake$dfPriorInfo$par2[3]*1.2)
+xlim <- c(0, hakeOM$dfPriorInfo$par2[3]*1.2)
 ylim <- c(0, nsamp/10)
-hist(hake$S[,"MSY"], col="gray", lty="blank", xlim=xlim, ylim=ylim, xlab="MSY", ylab="Frequency", main="")
+hist(hakeOM$S[,"MSY"], col="gray", lty="blank", xlim=xlim, ylim=ylim, xlab="MSY", ylab="Frequency", main="")
 par(new=TRUE)
 hist(M0$S[M0$idx,"MSY"], col="#AA000050", lty="blank", xlim=xlim, ylim=ylim, xlab="", ylab="", main="")
 par(new=TRUE)
@@ -405,9 +558,9 @@ legend("topright", legend=c("Sampling space", "Catch only", "Catch+Index", "Catc
 dev.off()
 
 png(file.path(fig_dir, "sel50_catchindexlencomp_hist.png"), width=10, height=6, units="in", res=200)
-xlim <- c(0, exp(hake$dfPriorInfo$par1[4])*3)
+xlim <- c(0, exp(hakeOM$dfPriorInfo$par1[4])*3)
 ylim <- c(0, nsamp)
-hist(hake$S[,"sel50"], col="gray", lty="blank", xlim=xlim, ylim=ylim, xlab="sel50", ylab="Frequency", main="")
+hist(hakeOM$S[,"sel50"], col="gray", lty="blank", xlim=xlim, ylim=ylim, xlab="sel50", ylab="Frequency", main="")
 par(new=TRUE)
 hist(M0$S[M0$idx,"sel50"], col="#AA000050", lty="blank", xlim=xlim, ylim=ylim, xlab="", ylab="", main="")
 par(new=TRUE)
@@ -419,25 +572,25 @@ dev.off()
 
 ## boxplot
 png(file.path(fig_dir, "MSY_boxplot_7.png"), width=10, height=6, units="in", res=200)
-boxplot(hake$S[,"MSY"], M0$S[M0$idx,"MSY"], M1$S[M1$idx,"MSY"], M2$S[M2$idx,"MSY"], M3$S[M3$idx,"MSY"], M4$S[M4$idx,"MSY"], M5$S[M5$idx,"MSY"], col=c("gray","goldenrod","steelblue", "violet", "purple", "lawngreen", "forestgreen"), lwd=2, xlim=c(0,8), ylim=c(hake$dfPriorInfo$par1[3], hake$dfPriorInfo$par2[3]))
+boxplot(hakeOM$S[,"MSY"], M0$S[M0$idx,"MSY"], M1$S[M1$idx,"MSY"], M2$S[M2$idx,"MSY"], M3$S[M3$idx,"MSY"], M4$S[M4$idx,"MSY"], M5$S[M5$idx,"MSY"], col=c("gray","red","steelblue", "violet", "purple", "lawngreen", "forestgreen"), lwd=2, xlim=c(0,8), ylim=c(hakeOM$dfPriorInfo$par1[3], hakeOM$dfPriorInfo$par2[3]))
 dev.off()
 
 png(file.path(fig_dir, "sel50_boxplot_7.png"), width=10, height=6, units="in", res=200)
-boxplot(hake$S[,"sel50"], M0$S[M0$idx,"sel50"], M1$S[M1$idx,"sel50"], M2$S[M2$idx,"sel50"], M3$S[M3$idx,"sel50"], M4$S[M4$idx,"sel50"], M5$S[M5$idx,"sel50"], col=c("gray","goldenrod","steelblue", "violet", "purple", "lawngreen", "forestgreen"), lwd=2, xlim=c(0,8), ylim=c(0,exp(hake$dfPriorInfo$par1[4]*2)))
+boxplot(hakeOM$S[,"sel50"], M0$S[M0$idx,"sel50"], M1$S[M1$idx,"sel50"], M2$S[M2$idx,"sel50"], M3$S[M3$idx,"sel50"], M4$S[M4$idx,"sel50"], M5$S[M5$idx,"sel50"], col=c("gray","red","steelblue", "violet", "purple", "lawngreen", "forestgreen"), lwd=2, xlim=c(0,8), ylim=c(0,exp(hakeOM$dfPriorInfo$par1[4]*2)))
 dev.off()
 
 #### qqplots
 png(file.path(fig_dir, "qqMSY.png"), width=10, height=8, units="in", res=200)
 par(mfrow=c(2,2))
-qqplot(hake$S[,"MSY"], M0$S[M0$idx,"MSY"], xlab="Sampling space", ylab="Posterior", xlim=c(100,400), ylim=c(100,400), main="Catch")
+qqplot(hakeOM$S[,"MSY"], M0$S[M0$idx,"MSY"], xlab="Sampling space", ylab="Posterior", xlim=c(100,400), ylim=c(100,400), main="Catch")
 lines(x=100:400, y=100:400, col="blue", lwd=3)
 
-qqplot(hake$S[,"MSY"], M1$S[M1$idx,"MSY"], xlab="Sampling space", ylab="Posterior", xlim=c(100,400), ylim=c(100,400), main="+Index")
+qqplot(hakeOM$S[,"MSY"], M1$S[M1$idx,"MSY"], xlab="Sampling space", ylab="Posterior", xlim=c(100,400), ylim=c(100,400), main="+Index")
 lines(x=100:400, y=100:400, col="blue", lwd=3)
 
-qqplot(hake$S[,"MSY"], M2$S[M2$idx,"MSY"], xlab="Sampling space", ylab="Posterior", xlim=c(100,400), ylim=c(100,400), main="+Mean Length")
+qqplot(hakeOM$S[,"MSY"], M2$S[M2$idx,"MSY"], xlab="Sampling space", ylab="Posterior", xlim=c(100,400), ylim=c(100,400), main="+Mean Length")
 lines(x=100:400, y=100:400, col="blue", lwd=3)
 
-qqplot(hake$S[,"MSY"], M3$S[M3$idx,"MSY"], xlab="Sampling space", ylab="Posterior", xlim=c(100,400), ylim=c(100,400), main="+Index + Mean Length")
+qqplot(hakeOM$S[,"MSY"], M3$S[M3$idx,"MSY"], xlab="Sampling space", ylab="Posterior", xlim=c(100,400), ylim=c(100,400), main="+Index + Mean Length")
 lines(x=100:400, y=100:400, col="blue", lwd=3)
 dev.off()
