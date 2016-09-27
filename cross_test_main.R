@@ -3,7 +3,7 @@ rm(list=ls())
 ##############################################################
 ##### ------------- install packages ------------------- #####
 ##############################################################
-# devtools::install_github("merrillrudd/LIME", build.vignettes=TRUE, dependencies=TRUE)
+devtools::install_github("merrillrudd/LIME", build.vignettes=TRUE, dependencies=TRUE)
 library(LIME)
 
 devtools::install_github("merrillrudd/catchMSY", build.vignettes=TRUE, dependencies=TRUE)
@@ -40,7 +40,7 @@ dir.create(fig_dir, showWarnings=FALSE)
 ##### --------------- testing options ------------------ #####
 
 ## test across different life histories 
-lh_vec <- c("CRSNAP", "SIGSUT", "HAKE")
+lh_vec <- c("HAKE")#, "CRSNAP", "SIGSUT")
 lh <- lapply(lh_vec, function(x) choose_lh_list(species=x, selex="asymptotic", param_adjust=c("R0"), val=c(1000), start_ages=1))
 names(lh) <- lh_vec
 
@@ -48,7 +48,10 @@ names(lh) <- lh_vec
 Fdyn_set <- c("Endogenous", "Constant", "Ramp")
 
 ## test across different true recruitment patterns
-Rdyn_set <- c("Constant", "Pulsed", "BH")
+Rdyn_set <- c("Constant")#, "Pulsed", "BH")
+
+## test across different true levels of recruitment variation
+SigmaR_set <- c(0, 0.3, 0.6, 0.9)
 
 ################################################
 ## Run cmsy models
@@ -61,7 +64,7 @@ avail_set <- c("catch", "catch_index", "catch_bsurvey", "catch_ML", "catch_index
 da <- list("Nyears"=20, "Nyears_comp"=20, "comp_sample"=1000) 
 
 ## create combos
-cmsy_modcombos <- as.matrix(expand.grid("Model"="CMSY", "Data_avail"=avail_set, "Fdyn"=paste0("F_",Fdyn_set), "Rdyn"=paste0("R_",Rdyn_set), "LH"=paste0("LH_", lh_vec)))
+cmsy_modcombos <- as.matrix(expand.grid("Model"="CMSY", "Data_avail"=avail_set, "Fdyn"=paste0("F_",Fdyn_set), "Rdyn"=paste0("R_",Rdyn_set), "SigmaR"=paste0("SigmaR_",SigmaR_set), "LH"=paste0("LH_", lh_vec)))
 
 ## transform model combinations into directories
 cmsy_dir_vec <- model_paths(modcombos=cmsy_modcombos, res_dir=sim_dir)
@@ -78,7 +81,7 @@ registerDoParallel(cores=5)
 start_datagen <- Sys.time()
 
 ## create true population and generated data into directories
-foreach(loop=1:length(cmsy_dir_vec), .packages=c('LIME','catchMSY')) %dopar% generateData(modpath=cmsy_dir_vec[loop], itervec=itervec, spatial=TRUE, Fdynamics=strsplit(cmsy_modcombos[loop,"Fdyn"],"_")[[1]][2], Rdynamics=strsplit(cmsy_modcombos[loop,"Rdyn"],"_")[[1]][2], LType=1, write=TRUE, lh_list=lh, data_avail_list=da, modname=paste0(cmsy_modcombos[loop,"Model"],"_",cmsy_modcombos[loop,"Data_avail"]), rewrite=FALSE)
+foreach(loop=1:length(cmsy_dir_vec), .packages=c('LIME','catchMSY')) %dopar% generateData(modpath=cmsy_dir_vec[loop], itervec=itervec, spatial=TRUE, Fdynamics=strsplit(cmsy_modcombos[loop,"Fdyn"],"_")[[1]][2], Rdynamics=strsplit(cmsy_modcombos[loop,"Rdyn"],"_")[[1]][2], LType=1, write=TRUE, lh_list=lh, data_avail_list=da, modname=paste0(cmsy_modcombos[loop,"Model"],"_",cmsy_modcombos[loop,"Data_avail"]), rewrite=FALSE, param_adjust="SigmaR", val=as.numeric(strsplit(cmsy_modcombos[loop,"SigmaR"],"_")[[1]][2]))
 
 end_datagen <- Sys.time() - start_datagen
 
@@ -87,11 +90,11 @@ end_datagen <- Sys.time() - start_datagen
 ## catchMSY
 start_run <- Sys.time()
 
-for(loop in 1:length(cmsy_dir_vec)){
-	run_cmsy(modpath=cmsy_dir_vec[loop], itervec=itervec, lh_list=lh, data_avail=cmsy_modcombos[loop,"Data_avail"], nyears=20, rewrite=FALSE)
-}
+# for(loop in 1:length(cmsy_dir_vec)){
+# 	run_cmsy(modpath=cmsy_dir_vec[loop], itervec=itervec, lh_list=lh, data_avail=cmsy_modcombos[loop,"Data_avail"], nyears=20, rewrite=FALSE)
+# }
 
-# foreach(loop=1:length(cmsy_dir_vec), .packages=c('LIME', 'catchMSY')) %dopar% tryCatch(run_cmsy(modpath=cmsy_dir_vec[loop], itervec=itervec, lh_list=lh, data_avail=cmsy_modcombos[loop,"Data_avail"], nyears=20, rewrite=FALSE), error=function(e) print(paste0("issue with ", cmsy_dir_vec[loop])))
+foreach(loop=1:length(cmsy_dir_vec), .packages=c('LIME', 'catchMSY')) %dopar% tryCatch(run_cmsy(modpath=cmsy_dir_vec[loop], itervec=itervec, lh_list=lh, data_avail=cmsy_modcombos[loop,"Data_avail"], nyears=20, rewrite=FALSE), error=function(e) print(paste0("issue with ", cmsy_dir_vec[loop])))
 
 end_run <- Sys.time() - start_run
 
