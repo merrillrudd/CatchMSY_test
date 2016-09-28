@@ -59,7 +59,7 @@ SigmaR_set <- c(0, 0.3, 0.6, 0.9)
 
 ## data availability scenarios -- LC currently not working, remove for now. 
 avail_set <- c("catch", "catch_index", "catch_bsurvey", "catch_ML", "catch_index_ML", "catch_bsurvey_ML") 
-# avail_set_LC <- c("catch_LC", "catch_index_LC", "catch_bsurvey_LC")
+avail_set_LC <- c("catch_LC", "catch_index_LC", "catch_bsurvey_LC")
 
 da <- list("Nyears"=20, "Nyears_comp"=20, "comp_sample"=1000) 
 
