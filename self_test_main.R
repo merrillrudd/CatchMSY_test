@@ -499,8 +499,19 @@ hist(hakeOM$S[,"MSY"], col="gray", lty="blank", xlim=xlim, ylim=ylim, xlab="MSY"
 par(new=TRUE)
 hist(M0$S[M0$idx,"MSY"], col="#AA000050", lty="blank", xlim=xlim, ylim=ylim, xlab="", ylab="", main="")
 par(new=TRUE)
-hist(M4$S[M4$idx,"MSY"], col="#00AA0050", lty="blank", xlim=xlim, ylim=ylim, xlab="", ylab="", main="")
-legend("topright", legend=c("Sampling space", "Catch only", "Catch+LengthComp"), pch=15, col=c("gray", "#AA000050","#00AA0050"))
+hist(M4$S[M4$idx,"MSY"], col="#AA00FF50", lty="blank", xlim=xlim, ylim=ylim, xlab="", ylab="", main="")
+legend("topright", legend=c("Sampling space", "Catch only", "Catch+LengthComp"), pch=15, col=c("gray", "#AA000050","#AA00FF50"))
+dev.off()
+
+png(file.path(fig_dir, "MSY_catchlencompNoSX_hist.png"), width=10, height=6, units="in", res=200)
+xlim <- c(0, hakeOM$dfPriorInfo$par2[3]*1.2)
+ylim <- c(0, nsamp/10)
+hist(hakeOM$S[,"MSY"], col="gray", lty="blank", xlim=xlim, ylim=ylim, xlab="MSY", ylab="Frequency", main="")
+par(new=TRUE)
+hist(M0$S[M0$idx,"MSY"], col="#AA000050", lty="blank", xlim=xlim, ylim=ylim, xlab="", ylab="", main="")
+par(new=TRUE)
+hist(M4_noSX$S[M4_noSX$idx,"MSY"], col="#AA00FF50", lty="blank", xlim=xlim, ylim=ylim, xlab="", ylab="", main="")
+legend("topright", legend=c("Sampling space", "Catch only", "Catch+LengthComp"), pch=15, col=c("gray", "#AA000050","#AA00FF50"))
 dev.off()
 
 png(file.path(fig_dir, "sel50_catchlencomp_hist.png"), width=10, height=6, units="in", res=200)
@@ -510,18 +521,18 @@ hist(hakeOM$S[,"sel50"], col="gray", lty="blank", xlim=xlim, ylim=ylim, xlab="se
 par(new=TRUE)
 hist(M0$S[M0$idx,"sel50"], col="#AA000050", lty="blank", xlim=xlim, ylim=ylim, xlab="", ylab="", main="")
 par(new=TRUE)
-hist(M4$S[M4$idx,"sel50"], col="#00AA0050", lty="blank", xlim=xlim, ylim=ylim, xlab="", ylab="", main="")
-legend("topright", legend=c("Sampling space", "Catch only", "Catch+LengthComp"), pch=15, col=c("gray", "#AA000050","#00AA0050"))
+hist(M4$S[M4$idx,"sel50"], col="#AA00FF50", lty="blank", xlim=xlim, ylim=ylim, xlab="", ylab="", main="")
+legend("topright", legend=c("Sampling space", "Catch only", "Catch+LengthComp"), pch=15, col=c("gray", "#AA000050","#AA00FF50"))
 dev.off()
 
 
 ## boxplot
 png(file.path(fig_dir, "MSY_boxplot_6.png"), width=10, height=6, units="in", res=200)
-boxplot(hakeOM$S[,"MSY"], M0$S[M0$idx,"MSY"], M1$S[M1$idx,"MSY"], M2$S[M2$idx,"MSY"], M3$S[M3$idx,"MSY"], M4$S[M4$idx,"MSY"], col=c("gray","red","steelblue", "violet", "purple", "lawngreen"), lwd=2, xlim=c(0,8), ylim=c(hakeOM$dfPriorInfo$par1[3], hakeOM$dfPriorInfo$par2[3]))
+boxplot(hakeOM$S[,"MSY"], M0$S[M0$idx,"MSY"], M4$S[M4$idx,"MSY"], col=c("gray","red","purple"), lwd=2, xlim=c(0,8), ylim=c(hakeOM$dfPriorInfo$par1[3], hakeOM$dfPriorInfo$par2[3]))
 dev.off()
 
 png(file.path(fig_dir, "sel50_boxplot_6.png"), width=10, height=6, units="in", res=200)
-boxplot(hakeOM$S[,"sel50"], M0$S[M0$idx,"sel50"], M1$S[M1$idx,"sel50"], M2$S[M2$idx,"sel50"], M3$S[M3$idx,"sel50"], M4$S[M4$idx,"sel50"], col=c("gray","red","steelblue", "violet", "purple", "lawngreen"), lwd=2, xlim=c(0,8), ylim=c(0,exp(hakeOM$dfPriorInfo$par1[4]*2)))
+boxplot(hakeOM$S[,"sel50"], M0$S[M0$idx,"sel50"], M4$S[M4$idx,"sel50"], col=c("gray","red","purple"), lwd=2, xlim=c(0,8), ylim=c(0,exp(hakeOM$dfPriorInfo$par1[4]*2)))
 dev.off()
 #### ---------- catch + length composition + index -----------#####
 
