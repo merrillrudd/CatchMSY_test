@@ -17,8 +17,8 @@ library(doParallel)
 ##### --------------- directories -----------------------#####
 ##############################################################
 
-main_dir <- "F:\\Merrill\\Git_Projects\\CatchMSY_test"
-# main_dir <- "C:\\Git_Projects\\CatchMSY_test"
+# main_dir <- "F:\\Merrill\\Git_Projects\\CatchMSY_test"
+main_dir <- "C:\\Git_Projects\\CatchMSY_test"
 source(file.path(main_dir, "R", "test_functions.R"))
 
 ## setup results directory
@@ -104,58 +104,21 @@ compare_re(dir_vec=cmsy_dir_vec, mod_names=avail_set, Fdyn_vec=Fdyn_set, Rdyn_ve
 
 
 ################################################
-## Sensitivity - dome
+## Compare to biomass dynamic method
 ################################################
+library(R2jags)  # Interface with JAGS
+library(coda) 
+library("parallel")
+library("foreach")
+library("doParallel")
+library("gplots")
 
-## test across different life histories 
-lh_vec <- c("CRSNAP", "SIGSUT", "HAKE")
-lh_dome <- lapply(lh_vec, function(x) choose_lh_list(species=x, selex="dome", param_adjust=c("R0"), val=c(1000), start_ages=1))
-names(lh_dome) <- lh_vec
-
-## data availability scenarios -- LC currently not working, remove for now. 
-nolc_avail_set <- c("catch", "catch_index", "catch_bsurvey", "catch_ML", "catch_index_ML", "catch_bsurvey_ML") 
-# avail_set_LC <- c("catch_LC", "catch_index_LC", "catch_bsurvey_LC")
-
-da <- list("Nyears"=20, "Nyears_comp"=20, "comp_sample"=1000) 
-
-## create combos
-dome_modcombos <- as.matrix(expand.grid("Model"="CMSY_dome", "Data_avail"=nolc_avail_set, "Fdyn"=paste0("F_",Fdyn_set), "Rdyn"=paste0("R_",Rdyn_set), "LH"=paste0("LH_", lh_vec)))
-
-## transform model combinations into directories
-dome_cmsy_dirs <- model_paths(modcombos=dome_modcombos, res_dir=sim_dir)
-
-## run iterations
-itervec <- 1:20
-
-
-##--------------------- setup parallel ----------------------
-registerDoParallel(cores=5)
-
-## ------------------ simulate data -------------------------
-
-start_datagen <- Sys.time()
-
-## create true population and generated data into directories
-foreach(loop=1:length(dome_cmsy_dirs), .packages=c('LIME','catchMSY')) %dopar% generateData(modpath=dome_cmsy_dirs[loop], itervec=itervec, spatial=TRUE, Fdynamics=strsplit(cmsy_modcombos[loop,"Fdyn"],"_")[[1]][2], Rdynamics=strsplit(cmsy_modcombos[loop,"Rdyn"],"_")[[1]][2], LType=1, write=TRUE, lh_list=lh_dome, data_avail_list=da, modname=paste0(cmsy_modcombos[loop,"Model"],"_",cmsy_modcombos[loop,"Data_avail"]), rewrite=FALSE)
-
-end_datagen <- Sys.time() - start_datagen
-
-## -------------- run estimation models -----------------------
-
-## catchMSY
-start_run <- Sys.time()
-
-foreach(loop=1:length(dome_cmsy_dirs), .packages=c('LIME', 'catchMSY')) %dopar% tryCatch(run_cmsy(modpath=dome_cmsy_dirs[loop], itervec=itervec, lh_list=lh, data_avail=cmsy_modcombos[loop,"Data_avail"], nyears=20, rewrite=FALSE), error=function(e) print(paste0("issue with ", dome_cmsy_dirs[loop])))
-
-end_run <- Sys.time() - start_run
-
-
-## -------------- figures  -----------------------
-compare_re(dir_vec=dome_cmsy_dirs, mod_names=nolc_avail_set, Fdyn_vec=Fdyn_set, Rdyn_vec=Rdyn_set, lh_num="CRSNAP", save=FALSE, fig_name="test")
-
-# SPRcover <- interval_coverage(modpath_vec=mixe_dirs, param="SPR", itervec=itervec)
-# compare_fits(dir_vec=mixe_dirs, mod_names=paste0("LC", c(1,10)), Ftype="Ramp", Rtype="Pulsed", fig_name="Fits_LC", LHchoose=5, iter=7, save=TRUE, coverage=SPRcover$pcover, type="all")
-
+ncores <- 1
+FullSchaefer <- F    # initialize variable; automatically set to TRUE if enough abundance data are available
+n.chains     <- ifelse(ncores > 2,3,2) # set 3 chains in JAGS if more than 2 cores are available
+ncores_for_computation <- ncores # cores to be used for parallel processing of CMSY
+cl           <- makeCluster(ncores_for_computation)
+registerDoParallel(cl, cores = ncores_for_computation)
 
 
 
