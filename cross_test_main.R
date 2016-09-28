@@ -120,7 +120,39 @@ ncores_for_computation <- ncores # cores to be used for parallel processing of C
 cl           <- makeCluster(ncores_for_computation)
 registerDoParallel(cl, cores = ncores_for_computation)
 
+bd_avail_set <- c("catch", "catch_index", "catch_bsurvey") 
 
+da <- list("Nyears"=20, "Nyears_comp"=20, "comp_sample"=1000) 
+
+
+bdcmsy_modcombos <- as.matrix(expand.grid("Model"="BD_CMSY", "Data_avail"=bd_avail_set, "Fdyn"=paste0("F_",Fdyn_set), "Rdyn"=paste0("R_",Rdyn_set), "SigmaR"=paste0("SigmaR_",SigmaR_set), "LH"=paste0("LH_", lh_vec)))
+
+## transform model combinations into directories
+bdcmsy_dir_vec <- model_paths(modcombos=bdcmsy_modcombos, res_dir=sim_dir)
+
+## run iterations
+itervec <- 1:20
+
+##--------------------- setup parallel ----------------------
+registerDoParallel(cores=ncores)
+
+## ------------------ simulate data -------------------------
+
+start_datagen <- Sys.time()
+
+
+## create true population and generated data into directories
+foreach(loop=1:length(bdcmsy_dir_vec), .packages=c('LIME','catchMSY')) %dopar% generateData(modpath=bdcmsy_dir_vec[loop], itervec=itervec, spatial=TRUE, Fdynamics=strsplit(bdcmsy_modcombos[loop,"Fdyn"],"_")[[1]][2], Rdynamics=strsplit(bdcmsy_modcombos[loop,"Rdyn"],"_")[[1]][2], LType=1, write=TRUE, lh_list=lh, data_avail_list=da, modname=paste0(bdcmsy_modcombos[loop,"Model"],"_",bdcmsy_modcombos[loop,"Data_avail"]), rewrite=FALSE, param_adjust="SigmaR", val=as.numeric(strsplit(bdcmsy_modcombos[loop,"SigmaR"],"_")[[1]][2]))
+
+end_datagen <- Sys.time() - start_datagen
+
+## -------------- run estimation models -----------------------
+
+start_run <- Sys.time()
+
+foreach(loop=1:length(bdcmsy_dir_vec), .packages=c("catchMSY")) %dopar% run_cmsy_bd(modpath=bdcmsy_dir_vec[loop], itervec=itervec, lh_list=lh, rewrite=FALSE, nsamp=5000, ncores=ncores)
+
+end_run <- Sys.time() - start_run
 
 ################################################
 ## Compare to LIME method
