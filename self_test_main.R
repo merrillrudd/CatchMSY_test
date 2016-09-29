@@ -11,8 +11,8 @@ library(catchMSY)
 ##### --------------- directories -----------------------#####
 ##############################################################
 
-main_dir <- "F:\\Merrill\\Git_Projects\\CatchMSY_test"
-# main_dir <- "C:\\Git_Projects\\CatchMSY_test"
+# main_dir <- "F:\\Merrill\\Git_Projects\\CatchMSY_test"
+main_dir <- "C:\\Git_Projects\\CatchMSY_test"
 source(file.path(main_dir, "R", "test_functions.R"))
 
 ## location of external data
@@ -127,6 +127,8 @@ ML <- ML2
 hakeOM <- sample.sid(sID=hakeOM, selex=TRUE, n=nsamp)
 colnames(hakeOM$S) <- c("M", "Fmsy", "MSY", "sel50")
 
+
+
 png(file.path(fig_dir, "sampling_space_scatter.png"), width=10, height=8, units="in", res=200)
 pairs(hakeOM$S, gap=0, pch=20, cex.axis=1.3)
 dev.off()
@@ -168,6 +170,12 @@ M0_noSX <- sir.sid(M0, selex=FALSE, ncores)
 
 # Get MSY statistics
 M0$msy.stats <- summary(M0$S[M0$idx,3])
+
+
+png(file.path(fig_dir, "sampling_space_scatter.png"), width=10, height=8, units="in", res=200)
+pairs(hakeOM$S, gap=0, pch=20, cex.axis=1.3)
+dev.off()
+
 
 # Narrow down samples
 M0_cols <- rep("black", nsamp)
