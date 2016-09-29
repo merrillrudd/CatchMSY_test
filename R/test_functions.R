@@ -1,4 +1,4 @@
-run_cmsy <- function(modpath, itervec, lh_list, data_avail, nyears, selex=FALSE, rewrite=FALSE, nsamp=5000, ncores=1){
+run_cmsy <- function(modpath, itervec, lh_list, data_avail, nyears, selex=FALSE, rewrite=FALSE, nsamp=5000, ncores=1, sigmaML=0.2, sigmaI=0.2, sigmaB=0.2){
 	
 	lh_num <- ifelse(grepl("LH1", modpath), 1, ifelse(grepl("LH2", modpath), 2, ifelse(grepl("LH3", modpath), 3, ifelse(grepl("LH4", modpath), 4, ifelse(grepl("LH5", modpath), 5, ifelse(grepl("CRSNAP", modpath), "CRSNAP", ifelse(grepl("SIGSUT", modpath), "SIGSUT", ifelse(grepl("HAKE", modpath), "HAKE", stop("No match to life history number")))))))))
   	lh_choose <- lh_list[[lh_num]]
@@ -61,14 +61,14 @@ run_cmsy <- function(modpath, itervec, lh_list, data_avail, nyears, selex=FALSE,
 
       		catch <- data_gen$C_t
       		index <- data_gen$I_t
-      		index.lse <- rep(0.2, length(index))
+      		index.lse <- rep(sigmaI, length(index))
       		biomass <- index/lh_choose$qcoef
-      		biomass.lse <- rep(0.2, length(catch))
+      		biomass.lse <- rep(sigmaB, length(catch))
       		lc <- data_gen$LF
       			bins <- lh_choose$mids
       			colnames(lc) <- paste0("lc.",bins)
       		ml <- data_gen$ML_t
-      		ml.lse <- rep(0.6, length(ml))    
+      		ml.lse <- rep(sigmaML, length(ml))    
 
       		data_input <- data.frame("year"=1:nyears)
       		if(grepl("catch", data_avail)) data_input$catch <- catch
@@ -220,12 +220,12 @@ compare_re <- function(dir_vec, mod_names, Fdyn_vec, Rdyn_vec, lh_num, save, fig
 
 
 
-run_cmsy_bd <- function(modpath, itervec, lh_list, rewrite=FALSE, nsamp=5000, ncores=1){
+run_cmsy_bd <- function(modpath, itervec, lh_list, rewrite=FALSE, nsamp=5000, ncores=1, sigmaR=0.2, sigmaO=0.2){
 
     lh_num <- ifelse(grepl("LH1", modpath), 1, ifelse(grepl("LH2", modpath), 2, ifelse(grepl("LH3", modpath), 3, ifelse(grepl("LH4", modpath), 4, ifelse(grepl("LH5", modpath), 5, ifelse(grepl("CRSNAP", modpath), "CRSNAP", ifelse(grepl("SIGSUT", modpath), "SIGSUT", ifelse(grepl("HAKE", modpath), "HAKE", stop("No match to life history number")))))))))
     lh_choose <- lh_list[[lh_num]]
 
-    dataUncert   <- 0.1  # set observation error as uncertainty in catch - default is SD=0.1
+    dataUncert   <- sigmaO  # set observation error as uncertainty in catch - default is SD=0.1
     n            <- nsamp # initial number of r-k pairs
     n.new        <- n # initialize n.new
     ni           <- 3 # iterations for r-k-startbiomass combinations, to test different variability patterns; no improvement seen above 3
@@ -279,7 +279,7 @@ run_cmsy_bd <- function(modpath, itervec, lh_list, rewrite=FALSE, nsamp=5000, nc
     comment      <- as.character(cinfo$Comment[cinfo$Stock==stock])
     # set global defaults for uncertainty
     duncert      <- dataUncert
-    sigR         <- 0.1
+    sigR         <- sigmaR
 
     # check for common errors
     if (length(btype)==0){
