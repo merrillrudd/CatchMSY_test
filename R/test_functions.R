@@ -167,35 +167,108 @@ run_cmsy <- function(modpath, itervec, lh_list, data_avail, nyears, selex=FALSE,
 	return(paste0("ran ", length(itervec), " iters in ", modpath))
 }
 
-compare_re <- function(dir_vec, mod_names, Fdyn_vec, Rdyn_vec, lh_num, save, fig_name, itervec){
+devfn <- function(x, true){
+  dev <- x - true
+  return(dev)
+}
+
+print.letter <- function(label="(a)",xy=c(0.1,0.925),...) { 
+            tmp <- par("usr") 
+            text.x <- tmp[1]+xy[1]*diff(tmp[1:2]) #x position, diff=difference 
+            text.y <- tmp[3]+xy[2]*diff(tmp[3:4]) #y position 
+            text(x=text.x, y=text.y, labels=label,...) 
+}
+
+resid_plot <- function(out, true, ylim){
+  par(mfrow=c(1,3), mar=c(0,0,0,0), omi=c(1,1,1,1))
+  plot(x=1, y=1, xlim=c(0,23), ylim=ylim, type="n", cex.axis=2, xaxs="i", yaxs="i", xlab="", ylab="")
+  ml_dev <- apply(out$ML, 1, function(x) devfn(log(x), true=log(true$ML)))
+  for(i in 1:ncol(ml_dev)){
+    points(ml_dev[,i], pch=19, col="#22222250")
+  }
+  abline(h=0, col="red", lwd=2)
+  print.letter("Mean length", cex=3, xy=c(0.5,0.925)) 
+
+  b_dev <- apply(out$ps.bt[out$idx,], 1, function(x) devfn(log(x), true=log(true$SB_t)))
+  plot(x=1, y=1, xlim=c(0,23), ylim=ylim, type="n", cex.axis=2, xaxs="i", yaxs="i", xlab="", ylab="", yaxt="n")
+  for(i in 1:ncol(b_dev)){
+    points(b_dev[,i], pch=19, col="#22222250")
+  }
+  abline(h=0, col="red", lwd=2)
+  print.letter("Biomass", cex=3, xy=c(0.5,0.925)) 
+  
+
+  i_dev <- apply(out$ps.bt[out$idx,], 1, function(x) devfn(log(x), true=log(true$SB_t)) - mean(as.numeric(devfn(log(x), true=log(true$SB_t))),na.rm=TRUE))
+  plot(x=1, y=1, xlim=c(0,23), ylim=ylim, type="n", cex.axis=2, xaxs="i", yaxs="i", xlab="", ylab="", yaxt="n")
+  for(i in 1:ncol(i_dev)){
+    points(i_dev[,i], pch=19, col="#22222250")
+  }
+  abline(h=0, col="red", lwd=2)
+  print.letter("Index", cex=3, xy=c(0.5,0.925)) 
+
+  mtext(outer=TRUE, side=1, "Year", cex=2, line=4)
+  mtext(outer=TRUE, side=2, "Residuals", cex=2, line=4)
+}
+
+
+
+
+compare_re <- function(dir_vec, mod_names, Fdyn_vec, Rdyn_vec, SigmaR_vec, lh_num, save, fig_name, itervec, bd_dir_vec=FALSE, ylim=c(-2.5,3)){
   for(ll in 1:length(lh_num)){
     if(save==TRUE){
       write_fig <- paste0(fig_name, "_LH", lh_num[ll], ".png")
       png(file.path(fig_dir, write_fig), res=200, units="in", width=29, height=14)
     }
 
-      if(length(Fdyn_vec)==3 & length(Rdyn_vec)==3) par(mfcol=c(3,3), mar=c(0,0,0,0), omi=c(1,1.5,1,1), mgp=c(4,1,0))
-      if(length(Fdyn_vec)==1 & length(Rdyn_vec)==1) par(mfcol=c(1,1), mar=c(0,0,0,0), omi=c(1,1.5,1,1), mgp=c(4,1,0))
+    if(length(Rdyn_vec)==1 & length(SigmaR_set)>1) Rdyn_plot <- SigmaR_vec
+    if(length(Rdyn_vec)>1 & length(SigmaR_set)==1) Rdyn_plot <- Rdyn_vec
+
+      if(length(Fdyn_vec)==3 & length(Rdyn_plot)>1) par(mfcol=c(length(Rdyn_plot),3), mar=c(0,0,0,0), omi=c(1,1.5,1,1), mgp=c(4,1,0))
+      if(length(Fdyn_vec)==3 & length(Rdyn_plot)==1) par(mfcol=c(1,3), mar=c(0,0,0,0), omi=c(1,1.5,1,1), mgp=c(4,1,0))
+      if(length(Fdyn_vec)==1 & length(Rdyn_plot)==1) par(mfcol=c(1,1), mar=c(0,0,0,0), omi=c(1,1.5,1,1), mgp=c(4,1,0))
+
 
       if(grepl("F_", dir_vec[1]) & grepl("R_", dir_vec[1])){
       for(ff in 1:length(Fdyn_vec)){
-        for(rr in 1:length(Rdyn_vec)){
-          dirs <- dir_vec[which(grepl(paste0("F_", Fdyn_vec[ff]), dir_vec) & grepl(paste0("R_", Rdyn_vec[rr]), dir_vec))]
+        for(rr in 1:length(Rdyn_plot)){
+          if(length(Rdyn_vec)>1) dirs <- dir_vec[which(grepl(paste0("F_", Fdyn_vec[ff]), dir_vec) & grepl(paste0("R_", Rdyn_plot[rr]), dir_vec))]
+          if(length(SigmaR_vec)>1) dirs <- dir_vec[which(grepl(paste0("F_", Fdyn_vec[ff]), dir_vec) & grepl(paste0("SigmaR_", Rdyn_plot[rr], "/"), dir_vec))]
+          if(length(Rdyn_plot)==1) dirs <- dir_vec[which(grepl(paste0("F_", Fdyn_vec[ff]), dir_vec))]
+
+          if(all(bd_dir_vec == FALSE)==FALSE){
+            if(length(Rdyn_vec)>1) bd_dirs <- bd_dir_vec[which(grepl(paste0("F_", Fdyn_vec[ff]), bd_dir_vec) & grepl(paste0("R_", Rdyn_plot[rr]), bd_dir_vec))]
+            if(length(SigmaR_vec)>1) bd_dirs <- bd_dir_vec[which(grepl(paste0("F_", Fdyn_vec[ff]), bd_dir_vec) & grepl(paste0("SigmaR_", Rdyn_plot[rr], "/"), bd_dir_vec))]
+            if(length(Rdyn_plot)==1) bd_dirs <- bd_dir_vec[which(grepl(paste0("F_", Fdyn_vec[ff]), bd_dir_vec))]
+          }
+
           subdirs <- dirs[which(sapply(1:length(dirs), function(x) grepl(paste0("LH_",lh_num[ll]), dirs[x])))]
           stats <- sapply(1:length(subdirs), function(x) readRDS(file.path(subdirs[x], "stats.rds"))$msy[,"re"])
           sumstats <- sapply(1:length(subdirs), function(x) readRDS(file.path(subdirs[x], "summary_stats.rds"))$msy)
-          boxplot(stats, ylim=c(-3, 3), col="turquoise", xaxt="n", yaxt="n", lwd=2)
-          abline(h=0, lwd=5, lty=2)
-          for(i in 1:ncol(sumstats)){
-            text(x=i, y=-2.5, paste0("(", round(as.numeric(sumstats["mre",i]),2), ")\n", round(as.numeric(sumstats["pcover",i]),2)), cex=3)
+
+          if(all(bd_dir_vec==FALSE)==FALSE){
+            subdirs_bd <- bd_dirs[which(sapply(1:length(bd_dirs), function(x) grepl(paste0("LH_",lh_num[ll]), bd_dirs[x])))]
+            stats_bd <- sapply(1:length(bd_dirs), function(y) unlist(sapply(itervec, function(x) readMSY(bd=bd_dirs[y], iter=x))["re",]))
           }
+          if(all(bd_dir_vec==FALSE)) boxplot(stats, ylim=ylim, col="turquoise", xaxt="n", yaxt="n", lwd=2)
+          if(all(bd_dir_vec==FALSE)==FALSE){
+            stats_new <- matrix(NA, nrow=length(itervec), ncol=length(subdirs)*2)
+            for(i in 1:length(subdirs)){
+              stats_new[,(2*i-1)] <- stats[itervec,i]
+              stats_new[,(2*i)] <- stats_bd[itervec,i]
+            }
+            boxplot(stats_new, ylim=ylim, col=rep(c("turquoise", "gray"),length(subdirs)), xaxt="n", yaxt="n",lwd=2)
+          }
+          abline(h=0, lwd=5, lty=2)
+          # for(i in 1:ncol(sumstats)){
+          #   text(x=i, y=-2, paste0("(", round(as.numeric(sumstats["mre",i]),2), ")\n", round(as.numeric(sumstats["pcover",i]),2)), cex=3)
+          # }
         if(ff==1){
-          if(length(Rdyn_vec)>1) mtext(paste0( Rdyn_vec[rr]), side=2, line=5, font=2, cex=1.5)
+          if(length(Rdyn_plot)>1) mtext(paste0( Rdyn_plot[rr]), side=2, line=5, font=2, cex=1.5)
           axis(side=2, las=2, cex.axis=1.2)
         }
-        if(rr==1) if(length(Rdyn_vec)>1) mtext(paste0(Fdyn_vec[ff]), side=3, line=1, font=2, cex=1.5)
+        if(rr==1) if(length(Rdyn_plot)>1) mtext(paste0(Fdyn_vec[ff]), side=3, line=1, font=2, cex=1.5)
           mod_names_plot <- gsub("_", "\n", mod_names)
-        if(rr==length(Rdyn_vec)) axis(side=1, at=1:length(mod_names), mod_names_plot, cex.axis=1.3, font=2)
+        if(rr==length(Rdyn_plot)) axis(side=1, at=1:length(mod_names), mod_names_plot, cex.axis=1.3, font=2)
         }
       }
     }
@@ -204,10 +277,10 @@ compare_re <- function(dir_vec, mod_names, Fdyn_vec, Rdyn_vec, lh_num, save, fig
       subdirs <- dirs[which(sapply(1:length(dirs), function(x) grepl(paste0("LH_",lh_num[ll]), dirs[x])))]
           stats <- sapply(1:length(subdirs), function(x) readRDS(file.path(subdirs[x], "stats.rds"))$msy[,"re"])
           sumstats <- sapply(1:length(subdirs), function(x) readRDS(file.path(subdirs[x], "summary_stats.rds"))$msy)
-          boxplot(stats, ylim=c(-3, 3), col="turquoise", xaxt="n", yaxt="n", lwd=2)
+          boxplot(stats, ylim=ylim, col="turquoise", xaxt="n", yaxt="n", lwd=2)
           abline(h=0, lwd=5, lty=2)
           for(i in 1:ncol(sumstats)){
-            text(x=i, y=-2.5, paste0("(", round(as.numeric(sumstats["mre",i]),2), ")\n", round(as.numeric(sumstats["pcover",i]),2)), cex=3)
+            text(x=i, y=-2, paste0("(", round(as.numeric(sumstats["mre",i]),2), ")\n", round(as.numeric(sumstats["pcover",i]),2)), cex=3)
           } 
     }
     mtext("Model", side=1, cex=1.5, outer=TRUE, line=4)
@@ -218,6 +291,51 @@ compare_re <- function(dir_vec, mod_names, Fdyn_vec, Rdyn_vec, lh_num, save, fig
   }
 }
 
+
+re_calc <- function(dir, iter){
+  out <- readRDS(file.path(dir, iter, "cmsy_output.rds"))
+    true <- readRDS(file.path(dir, iter, "True.rds"))
+    re <- (out$S[out$idx,"msy"] - true$MSY)/true$MSY
+
+    return(re)
+}
+
+cover_calc <- function(dir, iter, off="red", on="gray"){
+  out <- readRDS(file.path(dir, iter, "cmsy_output.rds"))
+    true <- readRDS(file.path(dir, iter, "True.rds"))
+    lcl <- quantile(out$S[out$idx,"msy"],0.025)
+    ucl <- quantile(out$S[out$idx,"msy"],0.975)
+    cover <- ifelse(true$MSY>=lcl & true$MSY<=ucl, on, off)
+
+    return(cover)
+}
+
+re_calc_bd <- function(bd, iter){
+  out <- readRDS(file.path(bd, iter, "BD_cmsy_output.rds"))
+  true <- readRDS(file.path(bd, iter, "True.rds"))
+  bd <- out$MSY*1000
+  bdtrue <- true$MSY
+
+  rebd <- (bd - bdtrue)/bdtrue
+  relcl <- (out$lcl.MSY*1000 - bdtrue)/bdtrue
+  reucl <- (out$ucl.MSY*1000 - bdtrue)/bdtrue
+
+  Outs <- NULL
+  Outs$re <- rebd
+  Outs$relcl <- relcl
+  Outs$reucl <- reucl
+  return(Outs)
+}
+
+cover_calc_bd <- function(bd, iter, on="gray", off="red"){
+  out <- readRDS(file.path(bd, iter, "BD_cmsy_output.rds"))
+  true <- readRDS(file.path(bd, iter, "True.rds"))
+  bd <- out$MSY*1000
+  bdtrue <- true$MSY
+
+  cover <- ifelse(bdtrue>=out$lcl.MSY*1000 & bdtrue<= out$ucl.MSY*1000, on, off)
+  return(cover)
+}
 
 
 run_cmsy_bd <- function(modpath, itervec, lh_list, rewrite=FALSE, nsamp=5000, ncores=1, sigmaR=0.2, sigmaO=0.2){
