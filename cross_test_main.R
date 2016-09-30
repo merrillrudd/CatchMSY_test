@@ -94,6 +94,13 @@ start_run <- Sys.time()
 
 foreach(loop=1:length(cmsy_dir_vec), .packages=c('LIME', 'catchMSY')) %dopar% tryCatch(run_cmsy(modpath=cmsy_dir_vec[loop], itervec=itervec, lh_list=lh, data_avail=cmsy_modcombos[loop,"Data_avail"], nyears=20, rewrite=FALSE), error=function(e) print(paste0("issue with ", cmsy_dir_vec[loop])))
 
+modpath=cmsy_dir_vec[loop]
+itervec=itervec
+lh_list=lh
+data_avail=cmsy_modcombos[loop,"Data_avail"]
+nyears=20
+rewrite=FALSE
+
 end_run <- Sys.time() - start_run
 
 ######## length comp models #################################
@@ -197,23 +204,55 @@ print.letter(paste0("RE = ", round(median(unlist(reout)),2)), xy=c(0.925,0.925),
 print.letter(paste0("Cover = ", round(length(which(unlist(covout)=="gray"))/length(covout),2)), xy=c(0.925,0.885), cex=1.5)
 dev.off()
 
+model <- 28
+reout <- sapply(itervec, function(x) re_calc(dir=cmsy_dir_vec[model], iter=x))
+covout <- sapply(itervec, function(x) cover_calc(dir=cmsy_dir_vec[model], iter=x))
+png(file.path(fig_dir, "MSY_iters_ml_Fconstant_sigR0.6.png"), height=10, width=15, res=200, units="in")
+boxplot(reout, col=covout, xlab="Iteration", ylab="Relative Error", cex.lab=2, ylim=c(-2,4))
+abline(h=0, lwd=4, col="red")
+print.letter(paste0("RE = ", round(median(unlist(reout)),2)), xy=c(0.925,0.925), cex=1.5)
+print.letter(paste0("Cover = ", round(length(which(unlist(covout)=="gray"))/length(covout),2)), xy=c(0.925,0.885), cex=1.5)
+dev.off()
 
 
 
 
 ## biomass dynamics
 model <- 1
-reout <- sapply(itervec, function(x) re_calc_bd(bd=bdcmsy_dir_vec[model], iter=x))
-covout <- sapply(itervec, function(x) cover_calc_bd(bd=bdcmsy_dir_vec[model], iter=x))
+reoutbd <- sapply(itervec, function(x) re_calc_bd(bd=bdcmsy_dir_vec[model], iter=x))
+covoutbd <- sapply(itervec, function(x) cover_calc_bd(bd=bdcmsy_dir_vec[model], iter=x))
 png(file.path(fig_dir, "MSY_iters_catchBD_Fendogenous_sigR0.png"), height=10, width=15, res=200, units="in")
 plot(x=1,y=1,type="n",ylim=c(-2,15),xlim=c(0,21), cex.lab=2, xlab="Iteration", ylab="Relative Error")
-for(i in 1:ncol(reout)){
-	segments(x0=i, y0=as.numeric(reout["relcl",i]), y1=as.numeric(reout["reucl",i]), col="gray", lwd=4)
+for(i in 1:ncol(reoutbd)){
+	segments(x0=i, y0=as.numeric(reoutbd["relcl",i]), y1=as.numeric(reoutbd["reucl",i]), col="gray", lwd=4)
 }
-points(x=1:ncol(reout), y=reout["re",], col=covout, xlab="Iteration", ylab="Relative Error", cex.lab=2, ylim=c(-2,4), pch=19, cex=1.5)
+points(x=1:ncol(reoutbd), y=reoutbd["re",], col=covoutbd, xlab="Iteration", ylab="Relative Error", cex.lab=2, ylim=c(-2,4), pch=19, cex=1.5)
 abline(h=0, lwd=4, col="red")
-print.letter(paste0("RE = ", round(median(unlist(reout)),2)), xy=c(0.925,0.925), cex=1.5)
-print.letter(paste0("Cover = ", round(length(which(unlist(covout)=="gray"))/length(covout),2)), xy=c(0.925,0.885), cex=1.5)
+print.letter(paste0("RE = ", round(median(unlist(reoutbd)),2)), xy=c(0.925,0.925), cex=1.5)
+print.letter(paste0("Cover = ", round(length(which(unlist(covoutbd)=="gray"))/length(covoutbd),2)), xy=c(0.925,0.885), cex=1.5)
+dev.off()
+
+model <- 1
+reout <- sapply(1:50, function(x) re_calc(dir=cmsy_dir_vec[model], iter=x))
+covout <- sapply(1:50, function(x) cover_calc(dir=cmsy_dir_vec[model], iter=x))
+reoutbd <- sapply(1:20, function(x) re_calc_bd(bd=bdcmsy_dir_vec[model], iter=x))
+covoutbd <- sapply(1:20, function(x) cover_calc_bd(bd=bdcmsy_dir_vec[model], iter=x))
+png(file.path(fig_dir,"MSY_iters_compareAgeBD_catch_Fendog_sigR0.png"), height=12, width=15, res=200, units="in")
+par(mfrow=c(2,1), mar=c(0,0,0,0), omi=c(1,1,1,1))
+boxplot(reout, col=covout, xlab="Iteration", ylab="Relative Error", cex.lab=2, ylim=c(-2,15), xlim=c(0,21), xaxt="n")
+abline(h=0, lwd=4, col="red")
+print.letter(paste0("RE = ", round(median(unlist(reout)),2)), xy=c(0.8,0.925), cex=1.5)
+print.letter(paste0("Cover = ", round(length(which(unlist(covout)=="gray"))/length(covout),2)), xy=c(0.8,0.8), cex=1.5)
+plot(x=1,y=1,type="n",ylim=c(-2,15),xlim=c(0,21), cex.lab=2, xlab="Iteration", ylab="Relative Error")
+for(i in 1:ncol(reoutbd)){
+	segments(x0=i, y0=as.numeric(reoutbd["relcl",i]), y1=as.numeric(reoutbd["reucl",i]), col="gray", lwd=4)
+}
+points(x=1:ncol(reoutbd), y=reoutbd["re",], col=covoutbd, xlab="Iteration", ylab="Relative Error", cex.lab=2, pch=19, cex=1.5)
+abline(h=0, lwd=4, col="red")
+print.letter(paste0("RE = ", round(median(unlist(reoutbd)),2)), xy=c(0.8,0.925), cex=1.5)
+print.letter(paste0("Cover = ", round(length(which(unlist(covoutbd)=="gray"))/length(covoutbd),2)), xy=c(0.8,0.8), cex=1.5)
+mtext("Iteration", side=1, cex=2, line=3)
+mtext("Relative error", side=2, cex=2, line=3, outer=TRUE)
 dev.off()
 
 model <- 2
@@ -228,6 +267,29 @@ points(x=1:ncol(reout), y=reout["re",], col=covout, xlab="Iteration", ylab="Rela
 abline(h=0, lwd=4, col="red")
 print.letter(paste0("RE = ", round(median(unlist(reout)),2)), xy=c(0.925,0.925), cex=1.5)
 print.letter(paste0("Cover = ", round(length(which(unlist(covout)=="gray"))/length(covout),2)), xy=c(0.925,0.885), cex=1.5)
+dev.off()
+
+model <- 2
+reout <- sapply(1:50, function(x) re_calc(dir=cmsy_dir_vec[model], iter=x))
+covout <- sapply(1:50, function(x) cover_calc(dir=cmsy_dir_vec[model], iter=x))
+reoutbd <- sapply(1:20, function(x) re_calc_bd(bd=bdcmsy_dir_vec[model], iter=x))
+covoutbd <- sapply(1:20, function(x) cover_calc_bd(bd=bdcmsy_dir_vec[model], iter=x))
+png(file.path(fig_dir,"MSY_iters_compareAgeBD_index_Fendog_sigR0.png"), height=12, width=15, res=200, units="in")
+par(mfrow=c(2,1), mar=c(0,0,0,0), omi=c(1,1,1,1))
+boxplot(reout, col=covout, xlab="Iteration", ylab="Relative Error", cex.lab=2, ylim=c(-2,10), xlim=c(0,21), xaxt="n")
+abline(h=0, lwd=4, col="red")
+print.letter(paste0("RE = ", round(median(unlist(reout)),2)), xy=c(0.8,0.925), cex=1.5)
+print.letter(paste0("Cover = ", round(length(which(unlist(covout)=="gray"))/length(covout),2)), xy=c(0.8,0.8), cex=1.5)
+plot(x=1,y=1,type="n",ylim=c(-2,10),xlim=c(0,21), cex.lab=2, xlab="Iteration", ylab="Relative Error")
+for(i in 1:ncol(reoutbd)){
+	segments(x0=i, y0=as.numeric(reoutbd["relcl",i]), y1=as.numeric(reoutbd["reucl",i]), col="gray", lwd=4)
+}
+points(x=1:ncol(reoutbd), y=reoutbd["re",], col=covoutbd, xlab="Iteration", ylab="Relative Error", cex.lab=2, pch=19, cex=1.5)
+abline(h=0, lwd=4, col="red")
+print.letter(paste0("RE = ", round(median(unlist(reoutbd)),2)), xy=c(0.8,0.925), cex=1.5)
+print.letter(paste0("Cover = ", round(length(which(unlist(covoutbd)=="gray"))/length(covoutbd),2)), xy=c(0.8,0.8), cex=1.5)
+mtext("Iteration", side=1, cex=2, line=3)
+mtext("Relative error", side=2, cex=2, line=3, outer=TRUE)
 dev.off()
 
 
