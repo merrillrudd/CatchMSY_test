@@ -74,7 +74,7 @@ cmsy_dir_vec <- model_paths(modcombos=cmsy_modcombos, res_dir=sim_dir)
 lc_dir_vec <- model_paths(modcombos=lc_modcombos, res_dir=sim_dir)
 
 ## run iterations
-itervec <- 1:50
+itervec <- 1:20
 
 
 ##--------------------- setup parallel ----------------------
