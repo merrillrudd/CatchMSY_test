@@ -17,8 +17,8 @@ library(doParallel)
 ##### --------------- directories -----------------------#####
 ##############################################################
 
-# main_dir <- "F:\\Merrill\\Git_Projects\\CatchMSY_test"
-main_dir <- "C:\\Git_Projects\\CatchMSY_test"
+main_dir <- "F:\\Merrill\\Git_Projects\\CatchMSY_test"
+# main_dir <- "C:\\Git_Projects\\CatchMSY_test"
 source(file.path(main_dir, "R", "test_functions.R"))
 
 ## setup results directory
@@ -66,11 +66,15 @@ da <- list("Nyears"=20, "Nyears_comp"=20, "comp_sample"=1000)
 ## create combos
 cmsy_modcombos <- as.matrix(expand.grid("Model"="CMSY", "Data_avail"=avail_set, "Fdyn"=paste0("F_",Fdyn_set), "Rdyn"=paste0("R_",Rdyn_set), "SigmaR"=paste0("SigmaR_",SigmaR_set), "LH"=paste0("LH_", lh_vec)))
 
+lc_modcombos <- as.matrix(expand.grid("Model"="CMSY", "Data_avail"=avail_set_LC, "Fdyn"=paste0("F_",Fdyn_set), "Rdyn"=paste0("R_",Rdyn_set), "SigmaR"=paste0("SigmaR_",SigmaR_set), "LH"=paste0("LH_", lh_vec)))
+
+
 ## transform model combinations into directories
 cmsy_dir_vec <- model_paths(modcombos=cmsy_modcombos, res_dir=sim_dir)
+lc_dir_vec <- model_paths(modcombos=lc_modcombos, res_dir=sim_dir)
 
 ## run iterations
-itervec <- 1
+itervec <- 1:50
 
 
 ##--------------------- setup parallel ----------------------
@@ -81,7 +85,7 @@ registerDoParallel(cores=5)
 start_datagen <- Sys.time()
 
 ## create true population and generated data into directories
-foreach(loop=1:length(cmsy_dir_vec), .packages=c('LIME','catchMSY')) %dopar% generateData(modpath=cmsy_dir_vec[loop], itervec=itervec, spatial=TRUE, Fdynamics=strsplit(cmsy_modcombos[loop,"Fdyn"],"_")[[1]][2], Rdynamics=strsplit(cmsy_modcombos[loop,"Rdyn"],"_")[[1]][2], LType=1, write=TRUE, lh_list=lh, data_avail_list=da, modname=paste0(cmsy_modcombos[loop,"Model"],"_",cmsy_modcombos[loop,"Data_avail"]), rewrite=FALSE, param_adjust="SigmaR", val=as.numeric(strsplit(cmsy_modcombos[loop,"SigmaR"],"_")[[1]][2]))
+foreach(loop=1:length(cmsy_dir_vec), .packages=c('LIME','catchMSY')) %dopar% generateData(modpath=cmsy_dir_vec[loop], itervec=itervec, spatial=TRUE, Fdynamics=strsplit(cmsy_modcombos[loop,"Fdyn"],"_")[[1]][2], Rdynamics=strsplit(cmsy_modcombos[loop,"Rdyn"],"_")[[1]][2], LType=1, write=TRUE, lh_list=lh, data_avail_list=da, modname=paste0(cmsy_modcombos[loop,"Model"],"_",cmsy_modcombos[loop,"Data_avail"]), rewrite=TRUE, param_adjust="SigmaR", val=as.numeric(strsplit(cmsy_modcombos[loop,"SigmaR"],"_")[[1]][2]))
 
 end_datagen <- Sys.time() - start_datagen
 
@@ -90,7 +94,25 @@ end_datagen <- Sys.time() - start_datagen
 ## catchMSY
 start_run <- Sys.time()
 
-foreach(loop=1:length(cmsy_dir_vec), .packages=c('LIME', 'catchMSY')) %dopar% tryCatch(run_cmsy(modpath=cmsy_dir_vec[loop], itervec=itervec, lh_list=lh, data_avail=cmsy_modcombos[loop,"Data_avail"], nyears=20, rewrite=TRUE), error=function(e) print(paste0("issue with ", cmsy_dir_vec[loop])))
+foreach(loop=1:length(cmsy_dir_vec), .packages=c('LIME', 'catchMSY')) %dopar% tryCatch(run_cmsy(modpath=cmsy_dir_vec[loop], itervec=itervec, lh_list=lh, data_avail=cmsy_modcombos[loop,"Data_avail"], nyears=20, rewrite=FALSE), error=function(e) print(paste0("issue with ", cmsy_dir_vec[loop])))
+
+end_run <- Sys.time() - start_run
+
+## ------------------ simulate data -------------------------
+
+start_datagen <- Sys.time()
+
+## create true population and generated data into directories
+foreach(loop=1:length(lc_dir_vec), .packages=c('LIME','catchMSY')) %dopar% generateData(modpath=lc_dir_vec[loop], itervec=itervec, spatial=TRUE, Fdynamics=strsplit(lc_modcombos[loop,"Fdyn"],"_")[[1]][2], Rdynamics=strsplit(lc_modcombos[loop,"Rdyn"],"_")[[1]][2], LType=1, write=TRUE, lh_list=lh, data_avail_list=da, modname=paste0(lc_modcombos[loop,"Model"],"_",lc_modcombos[loop,"Data_avail"]), rewrite=TRUE, param_adjust="SigmaR", val=as.numeric(strsplit(lc_modcombos[loop,"SigmaR"],"_")[[1]][2]))
+
+end_datagen <- Sys.time() - start_datagen
+
+## -------------- run estimation models -----------------------
+
+## catchMSY
+start_run <- Sys.time()
+
+foreach(loop=1:length(lc_dir_vec), .packages=c('LIME', 'catchMSY')) %dopar% tryCatch(run_cmsy(modpath=lc_dir_vec[loop], itervec=itervec, lh_list=lh, data_avail=lc_modcombos[loop,"Data_avail"], nyears=20, rewrite=TRUE), error=function(e) print(paste0("issue with ", lc_dir_vec[loop])))
 
 end_run <- Sys.time() - start_run
 
@@ -146,7 +168,7 @@ end_datagen <- Sys.time() - start_datagen
 
 start_run <- Sys.time()
 
-foreach(loop=1:length(bdcmsy_dir_vec), .packages=c("catchMSY", "gplots")) %dopar% run_cmsy_bd(modpath=bdcmsy_dir_vec[loop], itervec=itervec, lh_list=lh, rewrite=FALSE, nsamp=5000, ncores=ncores)
+foreach(loop=1:length(bdcmsy_dir_vec), .packages=c("catchMSY", "gplots", "R2jags", "coda")) %dopar% run_cmsy_bd(modpath=bdcmsy_dir_vec[loop], itervec=itervec, lh_list=lh, rewrite=FALSE, nsamp=5000, ncores=ncores)
 
 end_run <- Sys.time() - start_run
 
