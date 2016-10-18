@@ -40,7 +40,7 @@ dir.create(fig_dir, showWarnings=FALSE)
 ##### --------------- testing options ------------------ #####
 
 ## test across different life histories 
-lh_vec <- "CRSNAP" #c("HAKE", "CRSNAP", "SIGSUT")
+lh_vec <- c("HAKE", "CRSNAP", "SIGSUT")
 lh <- lapply(lh_vec, function(x) choose_lh_list(species=x, selex="asymptotic", param_adjust=c("R0"), val=c(1000), start_ages=1))
 names(lh) <- lh_vec
 
@@ -51,14 +51,14 @@ Fdyn_set <- c("Increasing", "Constant", "Ramp")
 Rdyn_set <- c("Constant", "Pulsed", "BH")
 
 ## test across different true levels of recruitment variation
-SigmaR_set <- c(0)#, 0.6)
+SigmaR_set <- c(0, 0.6)
 
 ################################################
 ## Run cmsy models
 ################################################
 
 ## data availability scenarios -- LC currently not working, remove for now. 
-avail_set <- c("catch")#, "catch_index", "catch_ML") #"catch_bsurvey", "catch_index_ML", "catch_bsurvey_ML"
+avail_set <- c("catch", "catch_index", "catch_ML") 
 avail_set_LC <- c("catch_LC", "catch_index_LC", "catch_bsurvey_LC")
 
 da <- list("Nyears"=20, "Nyears_comp"=20, "comp_sample"=1000) 
@@ -72,7 +72,7 @@ cmsy_modcombos <- as.matrix(expand.grid("Model"="CMSY", "Data_avail"=avail_set, 
 cmsy_dir_vec <- model_paths(modcombos=cmsy_modcombos, res_dir=sim_dir)
 # lc_dir_vec <- model_paths(modcombos=lc_modcombos, res_dir=sim_dir)
 
-itervec <- 1
+itervec <- 1:50
 
 
 ##--------------------- setup parallel ----------------------
@@ -93,7 +93,6 @@ end_datagen <- Sys.time() - start_datagen
 start_run <- Sys.time()
 
 foreach(loop=1:length(cmsy_dir_vec), .packages=c('LIME', 'catchMSY')) %dopar% tryCatch(run_cmsy(modpath=cmsy_dir_vec[loop], itervec=itervec, lh_list=lh, data_avail=cmsy_modcombos[loop,"Data_avail"], nyears=20, rewrite=FALSE), error=function(e) print(paste0("issue with ", cmsy_dir_vec[loop])))
-
 
 end_run <- Sys.time() - start_run
 

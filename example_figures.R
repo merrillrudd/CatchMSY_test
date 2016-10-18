@@ -26,7 +26,7 @@ lh <- lapply(lh_vec, function(x) choose_lh_list(species=x, selex="asymptotic", p
 names(lh) <- lh_vec
 
 ## test across different true fishing mortality patterns 
-Fdyn_set <- c("Endogenous", "Constant", "Ramp")
+Fdyn_set <- c("Increasing", "Constant", "Ramp")
 
 ## test across different true recruitment patterns
 Rdyn_set <- c("Constant", "Pulsed", "BH")
@@ -47,8 +47,6 @@ cmsy_modcombos <- as.matrix(expand.grid("Model"="CMSY", "Data_avail"=avail_set, 
 
 ## transform model combinations into directories
 cmsy_dir_vec <- model_paths(modcombos=cmsy_modcombos, res_dir=sim_dir)
-
-
 
 #### no other data types included
 ### increasing fishing mortality, zero recruitment variation
@@ -125,7 +123,6 @@ dev.off()
 
 
 
-
 #### no other data types
 ### increasing fishing mortality, 0.6 recruitment variation
 model=37
@@ -197,28 +194,7 @@ dev.off()
 
 
 
-
-model <- 1
-  out <- readRDS(file.path(cmsy_dir_vec[model], 1, "cmsy_output.rds"))
-  true <- readRDS(file.path(cmsy_dir_vec[model], 1, "True.rds"))
-plot(x=1, y=1, type="n", ylim=c(0,1), xlim=c(0,22))
-for(i in out$idx){
-  lines(as.numeric(out$ps.dt[i,]), col="red")
-}
-model <- 2
-  out <- readRDS(file.path(cmsy_dir_vec[model], 1, "cmsy_output.rds"))
-  true <- readRDS(file.path(cmsy_dir_vec[model], 1, "True.rds"))
-for(i in out$idx){
-  lines(as.numeric(out$ps.dt[i,]), col="blue")
-}
-
-
-
-
-
-
-
-
+### scatterplot with priors
 png(file.path(dir, "sampling_space_scatterhist.png"), height=10, width=12, res=200, units="in")
   zones=matrix(c(2,0,1,3), ncol=2, byrow=TRUE)
   layout(zones, widths=c(4/5,1/5), heights=c(1/5,4/5))
@@ -244,6 +220,7 @@ png(file.path(dir, "sampling_space_scatterhist.png"), height=10, width=12, res=2
     at=(.8 * (mean(y) - min(y))/(max(y) - min(y))), cex=2)
 dev.off()
 
+## scatterplot with priors and posteriors
 png(file.path(dir, "narrow_scatterhist.png"), height=10, width=12, res=200, units="in")
   zones=matrix(c(2,0,1,3), ncol=2, byrow=TRUE)
   layout(zones, widths=c(4/5,1/5), heights=c(1/5,4/5))
@@ -279,6 +256,8 @@ png(file.path(dir, "narrow_scatterhist.png"), height=10, width=12, res=200, unit
 dev.off()
 
 
+## depletion trajectories
+## catch only
 png(file.path(dir, "depl_catchonly.png"), height=10, width=12, res=200, units="in")
 par(mfrow=c(1,1), mar=c(6,6,2,2))
 plot(x=1,y=1,type="n",xlim=c(0,20),ylim=c(0,1.1),xaxs="i",yaxs="i",cex.lab=2,cex.axis=2,xlab="Year",ylab="Depletion (B/K)")
@@ -290,6 +269,7 @@ for(i in out$idx){
 }
 dev.off()
 
+## catch + index
 png(file.path(dir, "depl_catchindex.png"), height=10, width=12, res=200, units="in")
 par(mfrow=c(1,1), mar=c(6,6,2,2))
 plot(x=1,y=1,type="n",xlim=c(0,20),ylim=c(0,1.1),xaxs="i",yaxs="i",cex.lab=2,cex.axis=2,xlab="Year",ylab="Depletion (B/K)")
