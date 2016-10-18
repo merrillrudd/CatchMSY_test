@@ -41,25 +41,27 @@ hake$dfPriorInfo$par1[3] = quantile(hake$data$catch,0.05)
 hake$dfPriorInfo$par2[3] = quantile(hake$data$catch,0.95)
 
 # Change selectivity
-hake$sel50 <- 4.0
-hake$sel95 <- 5.0
+hake$sel1 <- 4.0
+hake$sel2 <- 5.0
 
 ## change recruitment variation
 # hake$sigma_r <- 0.6
 
 ## age at 50% and 95% selectivity
-selexPriorInfo <- data.frame("id"=4, "dist"="lnorm", "par1"=log(hake$sel50), "par2"=0.1*hake$sel50, "log"=TRUE, "stringAsFactors"=FALSE)
+selexPriorInfo <- data.frame("id"=4, "dist"="lnorm", "par1"=log(hake$sel1), "par2"=0.1*hake$sel1, "log"=TRUE, "stringAsFactors"=FALSE)
 hake$dfPriorInfo <- rbind.data.frame(hake$dfPriorInfo, selexPriorInfo)
 
+# hake$smodel <- "dome"
+
 ## test that model runs
-hake_init <- catchMSYModel(hake)
+hake_test <- catchMSYModel(hake)
 
 ##############################################################
 ##### -----------  self-testing 	   ----------------- #####
 ##############################################################
 ## simulate mean length and length composition
-LC0 <- t(hake_init$LF)
-ML0 <- hake_init$ML
+LC0 <- t(hake_test$LF)
+ML0 <- hake_test$ML
 
 set.seed(123)
 hakeOM1 <- hake
@@ -84,8 +86,10 @@ ML2 <- hake2$ML
 ##### observation error mean lenth = 0.6 --------------- #####
 ##############################################################
 hakeOM <- hakeOM2
-LC <- LC2
-ML <- ML2
+hakeOM$sigma_r <- 0
+hake_init <- catchMSYModel(hakeOM)
+LC <- t(hake_init$LF)
+ML <- hake_init$ML
 
 # Generate random samples from dfPriorInfo
 hakeOM <- sample.sid(sID=hakeOM, selex=TRUE, n=nsamp)
@@ -97,9 +101,28 @@ M0 <- hakeOM
 # year and catch data only
 M0$data <- M0$data[,c("year","catch")]
 
+# detach(sID)
+# sID <- M0
+# S <- M0$S
+# s <- S[3,]
+# sID$m <- s[1]
+# sID$fmsy <- s[2]
+# sID$msy <- s[3]
+# sID$sel1 <- s[4]
+# sID$sel2 <- s[4]+1
+# attach(sID)
+
 # run model with each sample
-M0      <- sir.sid(M0, selex=TRUE, ncores)
-M0_noSX <- sir.sid(M0, selex=FALSE, ncores)
+M0      <- sir.sid(M0, selex=FALSE, ncores)
+# M0_noSX <- sir.sid(M0, selex=FALSE, ncores)
+
+par(mfrow=c(2,1))
+hist(M0$spr_msy[M0$idx,1])
+hist(M0$spr_t[M0$idx,ncol(M0$spr_t)])
+
+plot(sapply(1:ncol(M0$spr_t), function(x) median(M0$spr_t[M0$idx,x], na.rm=TRUE)))
+
+
 
 # Get MSY statistics
 M0$msy.stats <- summary(M0$S[M0$idx,3])
@@ -203,7 +226,7 @@ hist(runif(nsamp, quantile(hake$data$catch,0.05), quantile(hake$data$catch,0.95)
 text(x=50, y=350, "MSY", font=2, cex=3, xpd=NA)
 
 par(mfrow=c(1,1))
-hist(rlnorm(nsamp, log(hake$sel50), 0.1*hake$sel50), col="gray", main="", xaxs="i", yaxs="i")
+hist(rlnorm(nsamp, log(hake$sel1), 0.1*hake$sel1), col="gray", main="", xaxs="i", yaxs="i")
 text(x=15, y=1200, "sel50", font=2, cex=3, xpd=NA)
 
 ### plot data

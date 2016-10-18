@@ -220,8 +220,8 @@ compare_re <- function(dir_vec, mod_names, Fdyn_vec, Rdyn_vec, SigmaR_vec, lh_nu
       png(file.path(fig_dir, write_fig), res=200, units="in", width=29, height=14)
     }
 
-    if(length(Rdyn_vec)==1 & length(SigmaR_set)>1) Rdyn_plot <- SigmaR_vec
-    if(length(Rdyn_vec)>1 & length(SigmaR_set)==1) Rdyn_plot <- Rdyn_vec
+    if(length(Rdyn_vec)==1 & length(SigmaR_vec)>1) Rdyn_plot <- SigmaR_vec
+    if(length(Rdyn_vec)>1 & length(SigmaR_vec)==1) Rdyn_plot <- Rdyn_vec
 
       if(length(Fdyn_vec)==3 & length(Rdyn_plot)>1) par(mfcol=c(length(Rdyn_plot),3), mar=c(0,0,0,0), omi=c(1,1.5,1,1), mgp=c(4,1,0))
       if(length(Fdyn_vec)==3 & length(Rdyn_plot)==1) par(mfcol=c(1,3), mar=c(0,0,0,0), omi=c(1,1.5,1,1), mgp=c(4,1,0))
