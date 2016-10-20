@@ -1,4 +1,4 @@
-run_cmsy <- function(modpath, itervec, lh_list, data_avail, nyears, selex=FALSE, rewrite=FALSE, nsamp=5000, ncores=1, sigmaML=0.2, sigmaI=0.2, sigmaB=0.2){
+run_cmsy <- function(modpath, itervec, lh_list, data_avail, nyears, selex=FALSE, rewrite=FALSE, nsamp=5000, ncores=1, sigmaML=0.2, sigmaI=0.2, sigmaB=0.2, sigmaLC=0.2){
 	
 	lh_num <- ifelse(grepl("LH1", modpath), 1, ifelse(grepl("LH2", modpath), 2, ifelse(grepl("LH3", modpath), 3, ifelse(grepl("LH4", modpath), 4, ifelse(grepl("LH5", modpath), 5, ifelse(grepl("CRSNAP", modpath), "CRSNAP", ifelse(grepl("SIGSUT", modpath), "SIGSUT", ifelse(grepl("HAKE", modpath), "HAKE", stop("No match to life history number")))))))))
   	lh_choose <- lh_list[[lh_num]]
@@ -67,6 +67,7 @@ run_cmsy <- function(modpath, itervec, lh_list, data_avail, nyears, selex=FALSE,
       		lc <- data_gen$LF
       			bins <- lh_choose$mids
       			colnames(lc) <- paste0("lc.",bins)
+          lencomp_sd <- rep(sigmaLC, nrow(lc))
       		ml <- data_gen$ML_t
       		ml.lse <- rep(sigmaML, length(ml))    
 
@@ -81,8 +82,8 @@ run_cmsy <- function(modpath, itervec, lh_list, data_avail, nyears, selex=FALSE,
       			data_input$biomass.lse <- biomass.lse
       		}
       		if(grepl("LC", data_avail)){
+            data_input$lencomp_sd <- lencomp_sd
             data_input <- cbind(data_input, lc)
-            data_input$ess <- 1
           }
       		if(grepl("ML", data_avail)){
       			data_input$meanlength <- ml
@@ -114,9 +115,9 @@ run_cmsy <- function(modpath, itervec, lh_list, data_avail, nyears, selex=FALSE,
          		# species$m <- species$S[1,1]
          		# species$fmsy <- species$S[1,2]
          		# species$msy <- species$S[1,3]
-    		species_new <- tryCatch(sir.sid(sID=species, selex=selex, ncores=ncores), error=function(e) NA)
-        if(all(is.na(species_new))) write("error in model run", file.path(modpath, itervec[iter], "error.txt"))
-        if(all(is.na(species_new))==FALSE){
+    		species_new <- sir.sid(sID=species, selex=selex, ncores=ncores)
+        if(all(is.null(species_new$idx))) write("no samples chosen",file.path(modpath, itervec[iter], "error.txt"))
+        if(all(is.null(species_new$idx))==FALSE){
           species <- species_new
           species$msy.stats <- summary(species$S[species$idx,3])
           species$fmsy.stats <- summary(species$S[species$idx,2])
@@ -126,7 +127,7 @@ run_cmsy <- function(modpath, itervec, lh_list, data_avail, nyears, selex=FALSE,
         }
       }
 
-    if(all(is.na(species))==FALSE){
+    if(all(is.null(species$idx))==FALSE){
       stats$msy[iter,"re"] <- (species$msy.stats["Median"] - true_msy)/true_msy
       stats$fmsy[iter,"re"] <- (species$fmsy.stats["Median"] - true_fmsy)/true_fmsy
       stats$m[iter,"re"] <- (species$m.stats["Median"] - true_m)/true_m
