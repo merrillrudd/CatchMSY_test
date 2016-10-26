@@ -31,6 +31,8 @@ run_cmsy <- function(modpath, itervec, lh_list, data_avail, nyears, selex=FALSE,
 
   for(iter in 1:length(itervec)){
 
+    if(rewrite==TRUE & file.exists(file.path(iterpath, "error.txt"))) unlink(file.path(iterpath, "error.txt"), TRUE)
+
       data_gen <- readRDS(file.path(modpath, itervec[iter], "True.rds"))
       true_msy <- data_gen$MSY
       true_fmsy <- data_gen$Fmsy
@@ -227,6 +229,9 @@ compare_re <- function(dir_vec, mod_names, Fdyn_vec, Rdyn_vec, SigmaR_vec, lh_nu
       if(length(Fdyn_vec)==3 & length(Rdyn_plot)>1) par(mfcol=c(length(Rdyn_plot),3), mar=c(0,0,0,0), omi=c(1,1.5,1,1), mgp=c(4,1,0))
       if(length(Fdyn_vec)==3 & length(Rdyn_plot)==1) par(mfcol=c(1,3), mar=c(0,0,0,0), omi=c(1,1.5,1,1), mgp=c(4,1,0))
       if(length(Fdyn_vec)==1 & length(Rdyn_plot)==1) par(mfcol=c(1,1), mar=c(0,0,0,0), omi=c(1,1.5,1,1), mgp=c(4,1,0))
+      if(length(Fdyn_vec)==4 & length(Rdyn_plot)>1) par(mfcol=c(length(Rdyn_plot),4), mar=c(0,0,0,0), omi=c(1,1.5,1,1), mgp=c(4,1,0))
+      if(length(Fdyn_vec)==4 & length(Rdyn_plot)==1) par(mfcol=c(1,4), mar=c(0,0,0,0), omi=c(1,1.5,1,1), mgp=c(4,1,0))
+
 
 
       if(grepl("F_", dir_vec[1]) & grepl("R_", dir_vec[1])){
