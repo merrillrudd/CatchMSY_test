@@ -31,7 +31,7 @@ run_cmsy <- function(modpath, itervec, lh_list, data_avail, nyears, selex=FALSE,
 
   for(iter in 1:length(itervec)){
 
-    if(rewrite==TRUE & file.exists(file.path(iterpath, "error.txt"))) unlink(file.path(iterpath, "error.txt"), TRUE)
+    if(rewrite==TRUE & file.exists(file.path(modpath, itervec[iter], "error.txt"))) unlink(file.path(iterpath, "error.txt"), TRUE)
 
       data_gen <- readRDS(file.path(modpath, itervec[iter], "True.rds"))
       true_msy <- data_gen$MSY
