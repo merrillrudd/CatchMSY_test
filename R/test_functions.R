@@ -269,12 +269,12 @@ compare_re <- function(dir_vec, mod_names, Fdyn_vec, Rdyn_vec, SigmaR_vec, lh_nu
           #   text(x=i, y=-2, paste0("(", round(as.numeric(sumstats["mre",i]),2), ")\n", round(as.numeric(sumstats["pcover",i]),2)), cex=3)
           # }
         if(ff==1){
-          if(length(Rdyn_plot)>1) mtext(paste0( Rdyn_plot[rr]), side=2, line=5, font=2, cex=1.5)
-          axis(side=2, las=2, cex.axis=1.2)
+          if(length(Rdyn_plot)>1) mtext(paste0( Rdyn_plot[rr]), side=2, line=5, font=2, cex=2)
+          axis(side=2, las=2, cex.axis=2)
         }
-        if(rr==1) if(length(Rdyn_plot)>1) mtext(paste0(Fdyn_vec[ff]), side=3, line=1, font=2, cex=1.5)
+        if(rr==1) if(length(Rdyn_plot)>1) mtext(paste0(Fdyn_vec[ff]), side=3, line=1, font=2, cex=2)
           mod_names_plot <- gsub("_", "\n", mod_names)
-        if(rr==length(Rdyn_plot)) axis(side=1, at=1:length(mod_names), mod_names_plot, cex.axis=1.3, font=2)
+        if(rr==length(Rdyn_plot)) axis(side=1, at=1:length(mod_names), mod_names_plot, cex.axis=2, font=2)
         }
       }
     }
@@ -286,11 +286,11 @@ compare_re <- function(dir_vec, mod_names, Fdyn_vec, Rdyn_vec, SigmaR_vec, lh_nu
           boxplot(stats, ylim=ylim, col="turquoise", xaxt="n", yaxt="n", lwd=2)
           abline(h=0, lwd=5, lty=2)
           for(i in 1:ncol(sumstats)){
-            text(x=i, y=-2, paste0("(", round(as.numeric(sumstats["mre",i]),2), ")\n", round(as.numeric(sumstats["pcover",i]),2)), cex=3)
+            text(x=i, y=-2, paste0("(", round(as.numeric(sumstats["mre",i]),2), ")\n", round(as.numeric(sumstats["pcover",i]),2)), cex=5)
           } 
     }
-    mtext("Model", side=1, cex=1.5, outer=TRUE, line=4)
-    mtext("Relative error", side=2, cex=1.5, outer=TRUE, line=3)
+    mtext("Model", side=1, cex=2, outer=TRUE, line=4)
+    mtext("Relative error", side=2, cex=2, outer=TRUE, line=3)
     mtext("Fishing mortality pattern", side=3, line=3, cex=2, font=2, outer=TRUE)
     mtext("Recruitment pattern", side=2, line=7, cex=2, font=2, outer=TRUE)
     if(save==TRUE) dev.off()
