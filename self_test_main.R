@@ -102,7 +102,7 @@ M0 <- hakeOM
 M0$data <- M0$data[,c("year","catch")]
 
 # run model with each sample
-M0      <- sir.sid(M0, selex=FALSE, ncores)
+M0      <- sir.sid(M0, selex=TRUE, ncores)
 M0_noSX <- sir.sid(M0, selex=FALSE, ncores)
 
 # Get MSY statistics
