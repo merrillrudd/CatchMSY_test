@@ -88,8 +88,8 @@ run_cmsy <- function(modpath, itervec, lh_list, data_avail, nyears, selex=FALSE,
             data_input <- cbind(data_input, lc)
           }
       		if(grepl("ML", data_avail)){
-      			data_input$meanlength <- ml
-      			data_input$meanlength.lse <- ml.lse
+      			data_input$avgSize <- ml
+      			data_input$avgSize.lse <- ml.lse
       		}   
 
       		species$data <- data_input    
