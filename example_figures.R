@@ -1,99 +1,152 @@
-rm(list=ls())
 
-library(catchMSY)
-library(LIME)
+catch_dirs_nv <- cmsy_dir_vec[which(grepl("catch/", cmsy_dir_vec) & grepl("SigmaR_0/", cmsy_dir_vec) & grepl("CRSNAP", cmsy_dir_vec))]
+catch_dirs_v <- cmsy_dir_vec[which(grepl("catch/", cmsy_dir_vec) & grepl("SigmaR_0.6/", cmsy_dir_vec) & grepl("CRSNAP", cmsy_dir_vec))]
 
-main_dir <- "F:\\Merrill\\Git_Projects\\CatchMSY_test"
-# main_dir <- "C:\\Git_Projects\\CatchMSY_test"
-source(file.path(main_dir, "R", "test_functions.R"))
+png(file.path(fig_dir, "FR_scenarios.png"), height=8, width=12, units="in", res=200)
+par(mfrow=c(2,4), mar=c(0,0,0,0), omi=c(1,1,1,1))
+## loop over 4 fishing mortality scenarios
+for(i in 1:4){
+  plot(x=1, y=1, type="n", xlim=c(1,20), ylim=c(0,1.5), xaxt="n", yaxt="n", xaxs="i", yaxs="i", cex.axis=2)
+  if(i==1) axis(2, at=pretty(c(0,1)), las=2, cex.axis=2)
+  if(i==4) axis(1, at=pretty(c(0,20)), cex.axis=2)
+  if(i==1) mtext(side=2, "Fishing mortality", cex=1.5, line=4)
 
-## setup results directory
-sim_dir <- file.path(main_dir, "cross_test")
-## remove results (for testing)
-# unlink(sim_dir, TRUE)
-## create directory
-dir.create(sim_dir, showWarnings=FALSE)
-
-## setup directory for figures
-fig_dir <- file.path(main_dir, "figs")
-dir.create(fig_dir, showWarnings=FALSE)
-
-##### --------------- testing options ------------------ #####
-
-## test across different life histories 
-lh_vec <- c("HAKE", "CRSNAP", "SIGSUT")
-lh <- lapply(lh_vec, function(x) choose_lh_list(species=x, selex="asymptotic", param_adjust=c("R0"), val=c(1000), start_ages=1))
-names(lh) <- lh_vec
-
-## test across different true fishing mortality patterns 
-Fdyn_set <- c("Endogenous", "Constant", "Ramp")
-
-## test across different true recruitment patterns
-Rdyn_set <- c("Constant", "Pulsed", "BH")
-
-## test across different true levels of recruitment variation
-SigmaR_set <- c(0, 0.6)
-
-################################################
-## Run cmsy models
-################################################
-
-## data availability scenarios -- LC currently not working, remove for now. 
-avail_set <- c("catch", "catch_index","catch_ML") 
-avail_set_LC <- c("catch_LC", "catch_index_LC", "catch_bsurvey_LC")
-
-## create combos
-cmsy_modcombos <- as.matrix(expand.grid("Model"="CMSY", "Data_avail"=avail_set, "Fdyn"=paste0("F_",Fdyn_set), "Rdyn"=paste0("R_",Rdyn_set), "SigmaR"=paste0("SigmaR_",SigmaR_set), "LH"=paste0("LH_", lh_vec)))
-
-## transform model combinations into directories
-cmsy_dir_vec <- model_paths(modcombos=cmsy_modcombos, res_dir=sim_dir)
-
-catch_dirs <- cmsy_dir_vec[which(grepl("catch/", cmsy_dir_vec) & grepl("SigmaR_0.6/", cmsy_dir_vec) & grepl("CRSNAP", cmsy_dir_vec))]
-par(mfrow=c(3,3), mar=c(0,0,0,0), omi=c(1,1,1,1))
-for(i in 1:length(catch_dirs)){
-  true <- readRDS(file.path(catch_dirs[i], 1, "True.rds"))
-  plot(true$F_t, type="l", col="red", lwd=4, ylim=c(0,1), xaxt="n", yaxt="n", xaxs="i", yaxs="i")
-  par(new=TRUE)
-  plot(true$R_t/max(true$R_t), type="l", col="blue", lwd=4, ylim=c(0,2), xaxt="n", yaxt="n", xaxs="i", yaxs="i")
+  for(ii in itervec){
+      true_v <- readRDS(file.path(catch_dirs_v[i], ii, "True.rds"))
+      lines(true_v$F_t, col="#AA000050", lwd=2, xaxt="n", yaxt="n", xaxs="i", yaxs="i")
+      if(ii==length(itervec)){
+        true_nv <- readRDS(file.path(catch_dirs_nv[i], ii, "True.rds"))
+        lines(true_nv$F_t, col="black", lwd=4, xaxt="n", yaxt="n", xaxs="i", yaxs="i")
+      }
+  }
+  if(i==1) mtext(side=3, "Endogenous", cex=1.5, line=-2)
+  if(i==2) mtext(side=3, "Increasing", cex=1.5, line=-2)
+  if(i==3) mtext(side=3, "Constant", cex=1.5, line=-2)
+  if(i==4) mtext(side=3, "Ramped", cex=1.5, line=-2)
 }
-
-par(mfrow=c(3,3), mar=c(0,0,0,0), omi=c(1,1,1,1))
-for(i in 1:length(catch_dirs)){
-  plot(x=1, y=1, type="n", xlim=c(1,20), ylim=c(0,1), xaxt="n", yaxt="n", xaxs="i", yaxs="i")
-  for(ii in 1:50){
-      true <- readRDS(file.path(catch_dirs[i], ii, "True.rds"))
-      lines(true$F_t, col="#AA000050", lwd=2, xaxt="n", yaxt="n", xaxs="i", yaxs="i")
+## loop over 3 recruitment scenarios
+for(i in c(1,5,9)){
+  plot(x=1, y=1, type="n", xlim=c(1,20), ylim=c(0,4), yaxt="n", xaxs="i", yaxs="i", cex.axis=2)
+  if(i==1) axis(2, at=pretty(c(0,3)), las=2, cex.axis=2)
+  if(i==1) mtext(side=2, "Relative recruitment", cex=1.5, line=4)
+  for(ii in itervec){
+      true_v <- readRDS(file.path(catch_dirs_v[i], ii, "True.rds"))
+      lines(true_v$R_t/mean(true_v$R_t), col="#0000AA50", lwd=2, xaxt="n", yaxt="n", xaxs="i", yaxs="i")
+      if(ii==length(itervec)){
+        true_nv <- readRDS(file.path(catch_dirs_nv[i], ii, "True.rds"))
+        lines(true_nv$R_t/mean(true_nv$R_t), col="black", lwd=4, xaxt="n", yaxt="n", xaxs="i", yaxs="i")
+      }
   }
+  if(i==1) mtext(side=3, "Constant", cex=1.5, line=-2)
+  if(i==5) mtext(side=3, "Pulsed", cex=1.5, line=-2)
+  if(i==9) mtext(side=3, "Beverton-Holt", cex=1.5, line=-2)
 }
-
-endog_dirs <- catch_dirs[grepl("Endogenous", catch_dirs)]
-par(mfrow=c(3,3), mar=c(0,0,0,0), omi=c(1,1,1,1))
-for(i in 1:length(endog_dirs)){
-  plot(x=1, y=1, type="n", xlim=c(1,20), ylim=c(0,2), xaxt="n", yaxt="n", xaxs="i", yaxs="i")
-  for(ii in 1:50){
-      true <- readRDS(file.path(endog_dirs[i], ii, "True.rds"))
-      lines(true$F_t, col="#AA000050", lwd=2, xaxt="n", yaxt="n", xaxs="i", yaxs="i")
-  }
-  plot(x=1, y=1, type="n", xlim=c(1,20), ylim=c(0,3000), xaxt="n", yaxt="n", xaxs="i", yaxs="i")
-  for(ii in 1:50){
-      true <- readRDS(file.path(endog_dirs[i], ii, "True.rds"))
-      lines(true$R_t, col="#AA000050", lwd=2, xaxt="n", yaxt="n", xaxs="i", yaxs="i")
-  }
-  plot(x=1, y=1, type="n", xlim=c(1,20), ylim=c(0,1), xaxt="n", yaxt="n", xaxs="i", yaxs="i")
-  for(ii in 1:50){
-      true <- readRDS(file.path(endog_dirs[i], ii, "True.rds"))
-      lines(true$D_t, col="#AA000050", lwd=2, xaxt="n", yaxt="n", xaxs="i", yaxs="i")
-  }
-}
-
+mtext(side=1, "Year", outer=TRUE, cex=1.5, line=3)
+dev.off()
 
 
 ## -------------- figures  -----------------------
-compare_re(dir_vec=cmsy_dir_vec, mod_names=avail_set, Fdyn_vec=Fdyn_set, Rdyn_vec=Rdyn_set, SigmaR_vec=c(0,0.6), lh_num=lh_vec, save=TRUE, fig_name="RE_cmsy")
-compare_re(dir_vec=cmsy_dir_vec[which(grepl("SigmaR_0/", cmsy_dir_vec))], mod_names=avail_set, Fdyn_vec="Endogenous", Rdyn_vec=Rdyn_set, SigmaR_vec=0, lh_num=lh_vec, save=TRUE, fig_name="RE_cmsy_Fendog_Sigma0")
-compare_re(dir_vec=cmsy_dir_vec[which(grepl("SigmaR_0/", cmsy_dir_vec))], mod_names=avail_set, Fdyn_vec=Fdyn_set, Rdyn_vec=Rdyn_set, SigmaR_vec=0, lh_num=lh_vec, save=TRUE, fig_name="RE_cmsy_CompareAll_Sigma0")
+compare_re(dir_vec=cmsy_dir_vec[grepl("SigmaR_0/", cmsy_dir_vec)], mod_names=avail_set, Fdyn_vec=Fdyn_set, Rdyn_vec=Rdyn_set, SigmaR_vec=c(0), lh_num=lh_vec, save=TRUE, fig_name="RE_cmsy")
+compare_re(dir_vec=cmsy_dir_vec[grepl("SigmaR_0.6/", cmsy_dir_vec)], mod_names=avail_set, Fdyn_vec=Fdyn_set, Rdyn_vec=Rdyn_set, SigmaR_vec=c(0.6), lh_num=lh_vec, save=TRUE, fig_name="RE_cmsy_RecVar")
 
-compare_re(dir_vec=cmsy_dir_vec[which(grepl("SigmaR_0.6/", cmsy_dir_vec))], mod_names=avail_set, Fdyn_vec=Fdyn_set, Rdyn_vec=Rdyn_set, SigmaR_vec=0.6, lh_num=lh_vec, save=TRUE, fig_name="RE_cmsy_CompareAll_Sigma0.6")
+dir <- cmsy_dir_vec[which(grepl("catch/", cmsy_dir_vec) & grepl("SigmaR_0.6/", cmsy_dir_vec) & grepl("HAKE", cmsy_dir_vec) & grepl("F_Endogenous", cmsy_dir_vec) & grepl("R_Constant", cmsy_dir_vec))]
+reout <- sapply(itervec, function(x) re_calc(dir=dir, iter=x))
+covout <- sapply(itervec, function(x) cover_calc(dir=dir, iter=x))
+png(file.path(fig_dir, "MSY_iters_catch_Fendog_RecVar.png"), height=10, width=15, res=200, units="in")
+boxplot(reout, col=covout, xlab="Iteration", ylab="Relative Error", cex.lab=2, ylim=c(-2,4))
+abline(h=0, lwd=4, col="red")
+print.letter(paste0("RE = ", round(median(unlist(reout)),2)), xy=c(0.925,0.925), cex=1.5)
+print.letter(paste0("Cover = ", round(length(which(unlist(covout)=="gray"))/length(covout),2)), xy=c(0.925,0.885), cex=1.5)
+dev.off()
+
+dir <- cmsy_dir_vec[which(grepl("index/", cmsy_dir_vec) & grepl("SigmaR_0.6/", cmsy_dir_vec) & grepl("HAKE", cmsy_dir_vec) & grepl("F_Endogenous", cmsy_dir_vec) & grepl("R_Constant", cmsy_dir_vec))]
+reout <- sapply(itervec, function(x) re_calc(dir=dir, iter=x))
+covout <- sapply(itervec, function(x) cover_calc(dir=dir, iter=x))
+png(file.path(fig_dir, "MSY_iters_index_Fendog_RecVar.png"), height=10, width=15, res=200, units="in")
+boxplot(reout, col=covout, xlab="Iteration", ylab="Relative Error", cex.lab=2, ylim=c(-2,4))
+abline(h=0, lwd=4, col="red")
+print.letter(paste0("RE = ", round(median(unlist(reout)),2)), xy=c(0.925,0.925), cex=1.5)
+print.letter(paste0("Cover = ", round(length(which(unlist(covout)=="gray"))/length(covout),2)), xy=c(0.925,0.885), cex=1.5)
+dev.off()
+
+
+
+dir <- cmsy_dir_vec[which(grepl("catch/", cmsy_dir_vec) & grepl("SigmaR_0.6/", cmsy_dir_vec) & grepl("HAKE", cmsy_dir_vec) & grepl("F_Constant", cmsy_dir_vec) & grepl("R_Constant", cmsy_dir_vec))]
+reout <- sapply(itervec, function(x) re_calc(dir=dir, iter=x))
+covout <- sapply(itervec, function(x) cover_calc(dir=dir, iter=x))
+png(file.path(fig_dir, "MSY_iters_catch_Fconstant_RecVar.png"), height=10, width=15, res=200, units="in")
+boxplot(reout, col=covout, xlab="Iteration", ylab="Relative Error", cex.lab=2, ylim=c(-2,4))
+abline(h=0, lwd=4, col="red")
+print.letter(paste0("RE = ", round(median(unlist(reout)),2)), xy=c(0.925,0.925), cex=1.5)
+print.letter(paste0("Cover = ", round(length(which(unlist(covout)=="gray"))/length(covout),2)), xy=c(0.925,0.885), cex=1.5)
+dev.off()
+
+
+dir <- cmsy_dir_vec[which(grepl("index/", cmsy_dir_vec) & grepl("SigmaR_0.6/", cmsy_dir_vec) & grepl("HAKE", cmsy_dir_vec) & grepl("F_Constant", cmsy_dir_vec) & grepl("R_Constant", cmsy_dir_vec))]
+reout <- sapply(itervec, function(x) re_calc(dir=dir, iter=x))
+covout <- sapply(itervec, function(x) cover_calc(dir=dir, iter=x))
+png(file.path(fig_dir, "MSY_iters_index_Fconstant_RecVar.png"), height=10, width=15, res=200, units="in")
+boxplot(reout, col=covout, xlab="Iteration", ylab="Relative Error", cex.lab=2, ylim=c(-2,4))
+abline(h=0, lwd=4, col="red")
+print.letter(paste0("RE = ", round(median(unlist(reout)),2)), xy=c(0.925,0.925), cex=1.5)
+print.letter(paste0("Cover = ", round(length(which(unlist(covout)=="gray"))/length(covout),2)), xy=c(0.925,0.885), cex=1.5)
+dev.off()
+
+
+png(file.path(fig_dir, "MSY_iters_catchBD_Fendogenous_RecVar.png"), height=10, width=15, res=200, units="in")
+par(mfrow=c(2,1), mar=c(4.5,5,1,1))
+dir <- bdcmsy_dir_vec[which(grepl("catch/", bdcmsy_dir_vec) & grepl("SigmaR_0.6/", bdcmsy_dir_vec) & grepl("HAKE", bdcmsy_dir_vec) & grepl("F_Endogenous", bdcmsy_dir_vec) & grepl("R_Constant", bdcmsy_dir_vec))]
+reoutbd <- sapply(itervec, function(x) re_calc_bd(bd=dir, iter=x))
+covoutbd <- sapply(itervec, function(x) cover_calc_bd(bd=dir, iter=x))
+plot(x=1,y=1,type="n",ylim=c(-1,10),xlim=c(0,max(itervec)+1), cex.lab=2, xlab="Iteration", ylab="Relative Error", xaxt="n")
+axis(1, at=pretty(c(1,length(itervec))))
+for(i in 1:ncol(reoutbd)){
+  segments(x0=i, y0=as.numeric(reoutbd["relcl",i]), y1=as.numeric(reoutbd["reucl",i]), col="gray", lwd=4)
+}
+points(x=1:ncol(reoutbd), y=reoutbd["re",], col=covoutbd, xlab="Iteration", ylab="Relative Error", cex.lab=2, ylim=c(-2,4), pch=19, cex=1.5)
+abline(h=0, lwd=4, col="red")
+print.letter(paste0("RE = ", round(median(unlist(reoutbd)),2)), xy=c(0.925,0.925), cex=1.5)
+print.letter(paste0("Cover = ", round(length(which(unlist(covoutbd)=="gray"))/length(covoutbd),2)), xy=c(0.925,0.885), cex=1.5)
+
+dir <- cmsy_dir_vec[which(grepl("catch/", cmsy_dir_vec) & grepl("SigmaR_0.6/", cmsy_dir_vec) & grepl("HAKE", cmsy_dir_vec) & grepl("F_Endogenous", cmsy_dir_vec) & grepl("R_Constant", cmsy_dir_vec))]
+reout <- sapply(itervec, function(x) re_calc(dir=dir, iter=x))
+covout <- sapply(itervec, function(x) cover_calc(dir=dir, iter=x))
+boxplot(reout, col=covout, xlab="Iteration", ylab="Relative Error", cex.lab=2, xlim=c(1,length(itervec)+1), ylim=c(-1,10), xaxt="n")
+abline(h=0, lwd=4, col="red")
+axis(1, at=pretty(c(1,length(itervec))))
+print.letter(paste0("RE = ", round(median(unlist(reout)),2)), xy=c(0.925,0.925), cex=1.5)
+print.letter(paste0("Cover = ", round(length(which(unlist(covout)=="gray"))/length(covout),2)), xy=c(0.925,0.885), cex=1.5)
+dev.off()
+
+png(file.path(fig_dir, "MSY_iters_indexBD_Fendogenous_RecVar.png"), height=10, width=15, res=200, units="in")
+par(mfrow=c(2,1), mar=c(4.5,5,1,1))
+dir <- bdcmsy_dir_vec[which(grepl("index/", bdcmsy_dir_vec) & grepl("SigmaR_0.6/", bdcmsy_dir_vec) & grepl("HAKE", bdcmsy_dir_vec) & grepl("F_Endogenous", bdcmsy_dir_vec) & grepl("R_Constant", bdcmsy_dir_vec))]
+reoutbd <- sapply(itervec, function(x) re_calc_bd(bd=dir, iter=x))
+covoutbd <- sapply(itervec, function(x) cover_calc_bd(bd=dir, iter=x))
+plot(x=1,y=1,type="n",ylim=c(-1,2.5),xlim=c(0,max(itervec)+1), cex.lab=2, xlab="Iteration", ylab="Relative Error", xaxt="n")
+axis(1, at=pretty(c(1,length(itervec))))
+for(i in 1:ncol(reoutbd)){
+  segments(x0=i, y0=as.numeric(reoutbd["relcl",i]), y1=as.numeric(reoutbd["reucl",i]), col="gray", lwd=4)
+}
+points(x=1:ncol(reoutbd), y=reoutbd["re",], col=covoutbd, xlab="Iteration", ylab="Relative Error", cex.lab=2, ylim=c(-2,4), pch=19, cex=1.5)
+abline(h=0, lwd=4, col="red")
+print.letter(paste0("RE = ", round(median(unlist(reoutbd)),2)), xy=c(0.925,0.925), cex=1.5)
+print.letter(paste0("Cover = ", round(length(which(unlist(covoutbd)=="gray"))/length(covoutbd),2)), xy=c(0.925,0.885), cex=1.5)
+
+dir <- cmsy_dir_vec[which(grepl("index/", cmsy_dir_vec) & grepl("SigmaR_0.6/", cmsy_dir_vec) & grepl("HAKE", cmsy_dir_vec) & grepl("F_Endogenous", cmsy_dir_vec) & grepl("R_Constant", cmsy_dir_vec))]
+reout <- sapply(itervec, function(x) re_calc(dir=dir, iter=x))
+covout <- sapply(itervec, function(x) cover_calc(dir=dir, iter=x))
+boxplot(reout, col=covout, xlab="Iteration", ylab="Relative Error", cex.lab=2, ylim=c(-1,2.5), xaxt="n")
+axis(1, at=pretty(c(1,length(itervec))))
+abline(h=0, lwd=4, col="red")
+print.letter(paste0("RE = ", round(median(unlist(reout)),2)), xy=c(0.925,0.925), cex=1.5)
+print.letter(paste0("Cover = ", round(length(which(unlist(covout)=="gray"))/length(covout),2)), xy=c(0.925,0.885), cex=1.5)
+dev.off()
+
+
+
+
+
 
 
 
@@ -105,15 +158,6 @@ polygon(x=c(1:20, 20:1), y=c(lcl, rev(ucl)), col="#AAAAAA50", border=NA)
 lines(x=1:20, y=med, col="red", lwd=4)
 
 
-model <- 1
-reout <- sapply(itervec, function(x) re_calc(dir=cmsy_dir_vec[model], iter=x))
-covout <- sapply(itervec, function(x) cover_calc(dir=cmsy_dir_vec[model], iter=x))
-png(file.path(fig_dir, "MSY_iters_catch_Fendog_sigR0.png"), height=10, width=15, res=200, units="in")
-boxplot(reout, col=covout, xlab="Iteration", ylab="Relative Error", cex.lab=2, ylim=c(-2,4))
-abline(h=0, lwd=4, col="red")
-print.letter(paste0("RE = ", round(median(unlist(reout)),2)), xy=c(0.925,0.925), cex=1.5)
-print.letter(paste0("Cover = ", round(length(which(unlist(covout)=="gray"))/length(covout),2)), xy=c(0.925,0.885), cex=1.5)
-dev.off()
 
 
 model <- 2
