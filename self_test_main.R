@@ -101,31 +101,13 @@ M0 <- hakeOM
 # year and catch data only
 M0$data <- M0$data[,c("year","catch")]
 
-# detach(sID)
-# sID <- M0
-# S <- M0$S
-# s <- S[3,]
-# sID$m <- s[1]
-# sID$fmsy <- s[2]
-# sID$msy <- s[3]
-# sID$sel1 <- s[4]
-# sID$sel2 <- s[4]+1
-# attach(sID)
-
 # run model with each sample
 M0      <- sir.sid(M0, selex=FALSE, ncores)
-# M0_noSX <- sir.sid(M0, selex=FALSE, ncores)
-
-par(mfrow=c(2,1))
-hist(M0$spr_msy[M0$idx,1])
-hist(M0$spr_t[M0$idx,ncol(M0$spr_t)])
-
-plot(sapply(1:ncol(M0$spr_t), function(x) median(M0$spr_t[M0$idx,x], na.rm=TRUE)))
-
-
+M0_noSX <- sir.sid(M0, selex=FALSE, ncores)
 
 # Get MSY statistics
 M0$msy.stats <- summary(M0$S[M0$idx,3])
+M0_noSX$msy.stats <- summary(M0_noSX$S[M0_noSX$idx,3])
 
 #### ------------- catch + index ------------------------#####
 M1 <- hakeOM
@@ -139,6 +121,7 @@ M1_noSX <- sir.sid(M1, selex=FALSE, ncores)
 
 # Get MSY statistics
 M1$msy.stats <- summary(M1$S[M1$idx,3])
+M1_noSX$msy.stats <- summary(M1_noSX$S[M1_noSX$idx,3])
 
 ##############################################################
 ##### -----------  further development ----------------- #####
@@ -149,7 +132,7 @@ M1$msy.stats <- summary(M1$S[M1$idx,3])
 #### ------------- catch + mean length ------------------#####
 
 M2 <- hakeOM
-M2$data <- cbind(M2$data[,c("year","catch")], "meanlength"=ML, "meanlength.lse"=rep(0.6, length(ML)))
+M2$data <- cbind(M2$data[,c("year","catch")], "avgSize"=ML, "avgSize.lse"=rep(0.2, length(ML)))
 
 M2 <- sir.sid(M2,selex=TRUE,ncores)
 M2_noSX <- sir.sid(M2, selex=FALSE, ncores)
@@ -158,9 +141,9 @@ M2_noSX <- sir.sid(M2, selex=FALSE, ncores)
 M2$msy.stats <- summary(M2$S[M2$idx,3])
 
 #### ------------- catch + mean length ------------------#####
-### lower observation error!
+### higher observation error!
 M2_v2 <- hakeOM
-M2_v2$data <- cbind(M2_v2$data[,c("year","catch")], "meanlength"=ML, "meanlength.lse"=rep(0.2, length(ML)))
+M2_v2$data <- cbind(M2_v2$data[,c("year","catch")], "avgSize"=ML, "avgSize.lse"=rep(0.6, length(ML)))
 
 M2_v2 <- sir.sid(M2_v2,selex=TRUE,ncores)
 M2_v2_noSX <- sir.sid(M2_v2, selex=FALSE, ncores)
@@ -174,7 +157,7 @@ M2_v2$msy.stats <- summary(M2_v2$S[M2_v2$idx,3])
 M3 <- hakeOM
 
 # year, catch, and index
-M3$data <- cbind(M3$data[,c("year","catch","index","index.lse")], "meanlength"=ML, "meanlength.lse"=rep(0.6, length(ML))) 
+M3$data <- cbind(M3$data[,c("year","catch","index","index.lse")], "avgSize"=ML, "avgSize.lse"=rep(0.6, length(ML))) 
 
 # run model with each sample
 M3 <- sir.sid(M3, selex=TRUE, ncores)
@@ -182,12 +165,12 @@ M3_noSX <- sir.sid(M3, selex=FALSE, ncores)
 
 # Get MSY statistics
 M3$msy.stats <- summary(M3$S[M3$idx,3])
-
+M3_noSX <- summary(M3_noSX$S[M3_noSX$idx,3])
 
 #### ---------- catch + length composition --------------#####
 ### ess cannot go beyond about 10
 M4 <- hakeOM
-M4$data <- cbind(M4$data[,c("year","catch")], LC)
+M4$data <- cbind(M4$data[,c("year","catch")], "lencomp_sd"=rep(0.2, length(M0$data$year)), LC)
 
 # run model with each sample
 M4 <- sir.sid(M4,selex=TRUE,ncores)
@@ -212,6 +195,131 @@ M5$msy.stats <- summary(M5$S[M5$idx,3])
 ##### -----------  figures 	   ----------------- #####
 ##############################################################
 
+### for report -- all models in boxplot
+png(file.path(fig_dir, "boxplots_distr.png"), height=8, width=15, res=200, units="in")
+boxplot(hakeOM$S[,"MSY"], M0$S[M0$idx,"MSY"], M1$S[M1$idx,"MSY"], M2$S[M2$idx,"MSY"], M3$S[M3$idx,"MSY"], M4$S[M4$idx,"MSY"], col=c("gray","red", "blue", "orange", "turquoise", "forestgreen"), lwd=2, xlim=c(0.5,6.5), ylim=c(hakeOM$dfPriorInfo$par1[3], hakeOM$dfPriorInfo$par2[3]*1.4), cex.label=1.5)
+axis(1, at=1:6, labels=c("Prior", "Catch only", "Index", "Mean Length", "Mean Length+Index", "Length comp"), cex.axis=1.5)
+text(x=1, y=500, paste0(round(median(M0$S[,"MSY"]),0), "\n (", round(quantile(M0$S[,"MSY"], 0.05),0), ",", round(quantile(M0$S[,"MSY"], 0.975),0), ")"), col=gray(0.2), font=2, cex=1.6)
+text(x=2, y=500, paste0(round(median(M0$S[M0$idx,"MSY"]),0), "\n (", round(quantile(M0$S[M0$idx,"MSY"], 0.05),0), ",", round(quantile(M0$S[M0$idx,"MSY"], 0.975),0), ")"), col="red", font=2, cex=1.6)
+text(x=3, y=500, paste0(round(median(M1$S[M1$idx,"MSY"]),0), "\n (", round(quantile(M1$S[M1$idx,"MSY"], 0.05),0), ",", round(quantile(M1$S[M1$idx,"MSY"], 0.975),0), ")"), col="blue", font=2, cex=1.6)
+text(x=4, y=500, paste0(round(median(M2$S[M2$idx,"MSY"]),0), "\n (", round(quantile(M2$S[M2$idx,"MSY"], 0.05),0), ",", round(quantile(M2$S[M2$idx,"MSY"], 0.975),0), ")"), col="orange", font=2, cex=1.6)
+text(x=5, y=500, paste0(round(median(M3$S[M3$idx,"MSY"]),0), "\n (", round(quantile(M3$S[M3$idx,"MSY"], 0.05),0), ",", round(quantile(M3$S[M3$idx,"MSY"], 0.975),0), ")"), col="turquoise", font=2, cex=1.6)
+text(x=6, y=500, paste0(round(median(M4$S[M4$idx,"MSY"]),0), "\n (", round(quantile(M4$S[M4$idx,"MSY"], 0.05),0), ",", round(quantile(M4$S[M4$idx,"MSY"], 0.975),0), ")"), col="forestgreen", font=2, cex=1.6)
+mtext("MSY", side=2, line=2.75, cex=1.5)
+mtext("Data included in model", side=1, line=3, cex=1.5)
+dev.off()
+
+### for report -- all models in boxplot
+png(file.path(fig_dir, "boxplots_distr_sel50.png"), height=8, width=15, res=200, units="in")
+boxplot(hakeOM$S[,"sel50"], M0$S[M0$idx,"sel50"], M1$S[M1$idx,"sel50"], M2$S[M2$idx,"sel50"], M3$S[M3$idx,"sel50"], M4$S[M4$idx,"sel50"], col=c("gray","red", "blue", "orange", "turquoise", "forestgreen"), lwd=2, xlim=c(0.5,6.5), ylim=c(0, 20), cex.label=1.5)
+axis(1, at=1:6, labels=c("Prior", "Catch only", "Index", "Mean Length", "Mean Length+Index", "Length comp"), cex.axis=1.5)
+text(x=1, y=18, paste0(round(median(M0$S[,"sel50"]),2), "\n (", round(quantile(M0$S[,"sel50"], 0.05),2), ",", round(quantile(M0$S[,"sel50"], 0.975),2), ")"), col=gray(0.2), font=2, cex=1.6)
+text(x=2, y=18, paste0(round(median(M0$S[M0$idx,"sel50"]),2), "\n (", round(quantile(M0$S[M0$idx,"sel50"], 0.05),2), ",", round(quantile(M0$S[M0$idx,"sel50"], 0.975),2), ")"), col="red", font=2, cex=1.6)
+text(x=3, y=18, paste0(round(median(M1$S[M1$idx,"sel50"]),2), "\n (", round(quantile(M1$S[M1$idx,"sel50"], 0.05),2), ",", round(quantile(M1$S[M1$idx,"sel50"], 0.975),2), ")"), col="blue", font=2, cex=1.6)
+text(x=4, y=18, paste0(round(median(M2$S[M2$idx,"sel50"]),2), "\n (", round(quantile(M2$S[M2$idx,"sel50"], 0.05),2), ",", round(quantile(M2$S[M2$idx,"sel50"], 0.975),2), ")"), col="orange", font=2, cex=1.6)
+text(x=5, y=18, paste0(round(median(M3$S[M3$idx,"sel50"]),2), "\n (", round(quantile(M3$S[M3$idx,"sel50"], 0.05),2), ",", round(quantile(M3$S[M3$idx,"sel50"], 0.975),2), ")"), col="turquoise", font=2, cex=1.6)
+text(x=6, y=18, paste0(round(median(M4$S[M4$idx,"sel50"]),2), "\n (", round(quantile(M4$S[M4$idx,"sel50"], 0.05),2), ",", round(quantile(M4$S[M4$idx,"sel50"], 0.975),2), ")"), col="forestgreen", font=2, cex=1.6)
+mtext("Age at 50% selectivity", side=2, line=2.75, cex=1.5)
+mtext("Data included in model", side=1, line=3, cex=1.5)
+dev.off()
+
+
+### plot data
+png(file.path(fig_dir, "hake_data_plot.png"), width=12, height=8, res=200, units="in")
+par(mfrow=c(2,2), mar=c(4,5,0,0), omi=c(1,1,1,1))
+plot(hake$data$year, hake$data$catch, type="l", lwd=3, ylim=c(0, max(hake$data$catch)*1.2), cex.axis=1.5, xaxs="i", yaxs="i", xlab="", ylab="")
+mtext(side=2, "Catch", cex=1.5, line=3)
+plot(hake$data$year, hake$data$index, type="l", lwd=3, ylim=c(0, max(hake$data$index)*1.2), cex.axis=1.5, xaxs="i", yaxs="i", xlab="", ylab="")
+mtext(side=2, "Index", cex=1.5, line=3)
+
+plot(ML, ylim=c(0, max(ML)*1.2), xaxs="i", yaxs="i", cex=1.6, lwd=2, type="o", pch=17, xlab="Year", ylab="", cex.lab=1.5, cex.axis=1.5, xaxt="n")
+axis(1, at=seq(1,25,by=5), labels=c(1965, 1970, 1975, 1980, 1985), cex.axis=1.5)
+mtext(side=2, "Mean Length", cex=1.5, line=3)
+
+plot(LC[nrow(LC),], pch=17, cex=1.3, cex.axis=1.5, xaxs="i", yaxs="i", xlab="", ylab="")
+mtext(side=1, "Length bin (cm)", cex=1.5, line=3)
+mtext(side=2, "Frequency", cex=1.5, line=3)
+dev.off()
+
+
+
+## residuals
+## index per year
+plot(x=1, y=1, type="n", xlim=c(0,(ncol(M1$index_resid))), ylim=c(min(M1$index_resid),max(M1$index_resid)), xaxs="i", yaxs="i")
+for(i in 1:ncol(M1$index_resid)){
+	points(x=rep(i,nrow(M1$index_resid)), y=M1$index_resid[,i])
+}
+abline(h=0, col="red")
+
+## residuals - index from all years
+matplot(M1$index_resid, pch=19, ylim=c(-1.5,3), col="#0000AA30")
+abline(h=0, col="red", lwd=5)
+
+## residuals - length comp
+find_lc <- M4$lc_resid[M4$idx]
+choose_lc <- find_lc[[1]]
+
+### one sample
+plot(x=1, y=1, type="n", xlim=c(0,ncol(choose_lc)), ylim=c(0,nrow(choose_lc)+2), xaxs="i", yaxs="i")
+for(i in 1:nrow(choose_lc)){
+	for(j in 1:ncol(choose_lc)){
+		col <- ifelse(choose_lc[i,j]<0, "#0000AA50", "#AA000050")
+		points(x=j,y=i,cex=abs(as.numeric(choose_lc[i,j]))/15, col=col, pch=19)
+	}
+}
+
+## median of all samples
+lc_citers <- matrix(NA, nrow=nrow(choose_lc), ncol=ncol(choose_lc))
+for(i in 1:nrow(choose_lc)){
+	for(j in 1:ncol(choose_lc))
+		lc_citers[i,j] <- median(sapply(1:length(find_lc), function(x) as.numeric(find_lc[[x]][i,j])))
+}
+plot(x=1, y=1, type="n", xlim=c(0,ncol(lc_citers)), ylim=c(0,nrow(lc_citers)+2), xaxs="i", yaxs="i", xlab="", ylab="")
+for(i in 1:nrow(lc_citers)){
+	for(j in 1:ncol(lc_citers)){
+		col <- ifelse(lc_citers[i,j]<0, "#0000AA50", "#AA000050")
+		points(x=j,y=i,cex=abs(as.numeric(lc_citers[i,j]))/15, col=col, pch=19)
+	}
+}
+mtext(side=1, "Year", cex=1.3, line=3)
+mtext(side=2, "Length bin", cex=1.3, line=3)
+
+## across years
+lc_cyears <- matrix(NA, nrow=nrow(choose_lc), ncol=length(find_lc))
+for(i in 1:nrow(choose_lc)){
+	for(j in 1:length(find_lc)){
+		lc_cyears[i,j] <- median(unlist(find_lc[[j]][i,]))
+	}
+}
+plot(x=1, y=1, type="n", xlim=c(0,1000), ylim=c(0,nrow(lc_cyears)+2), xaxs="i", yaxs="i", xlab="", ylab="")
+for(i in 1:1000){
+	for(j in 1:ncol(lc_cyears)){
+		col <- ifelse(lc_cyears[i,j]<0, "#0000AA50", "#AA000050")
+		points(x=j,y=i,cex=abs(as.numeric(lc_cyears[i,j]))/50, col=col, pch=19)
+	}
+}
+mtext(side=1, "Iteration", cex=1.3, line=3)
+mtext(side=2, "Length bin", cex=1.3, line=3)
+
+### combine index and lc residual plots
+par(mfrow=c(1,2), mar=c(1,4,1,1), omi=c(1,1,1,1))
+matplot(M1$index_resid, pch=19, ylim=c(-1.5,3), col="#33333350", xlab="", ylab="")
+abline(h=0, col="red", lwd=5)
+mtext(side=1, "Iteration", cex=1.5, line=3)
+mtext(side=2, "Residual", cex=1.5, line=3)
+plot(x=1, y=1, type="n", xlim=c(0,ncol(choose_lc)), ylim=c(0,nrow(choose_lc)+2), xaxs="i", yaxs="i", xlab="", ylab="")
+for(i in 1:nrow(choose_lc)){
+	for(j in 1:ncol(choose_lc)){
+		col <- ifelse(choose_lc[i,j]<0, "#0000AA50", "#AA000050")
+		points(x=j,y=i,cex=abs(as.numeric(choose_lc[i,j]))/15, col=col, pch=19)
+	}
+}
+mtext(side=1, "Year", cex=1.5, line=3)
+mtext(side=2, "Length bin", cex=1.5, line=3)
+
+
+
+
 ### prior distributions
 par(mfrow=c(1,1))
 hist(rlnorm(nsamp, log(hake$m), 0.05*hake$m), col="gray", main="", xlim=c(0.14,0.16), xaxs="i", yaxs="i")
@@ -229,15 +337,6 @@ par(mfrow=c(1,1))
 hist(rlnorm(nsamp, log(hake$sel1), 0.1*hake$sel1), col="gray", main="", xaxs="i", yaxs="i")
 text(x=15, y=1200, "sel50", font=2, cex=3, xpd=NA)
 
-### plot data
-par(mfrow=c(2,1), mar=c(0,0,0,0), omi=c(1,1,1,1))
-plot(hake$data$year, hake$data$catch, type="l", lwd=3, ylim=c(0, max(hake$data$catch)*1.2), cex.axis=1.5, xaxt="n", xaxs="i", yaxs="i")
-polygon(x=c(hake$data$year, rev(hake$data$year)), y=c(rep(quantile(hake$data$catch,0.05),length(hake$data$year)),rep(quantile(hake$data$catch,0.95),length(hake$data$year))), col="#AAAAAA60",border=NA)
-mtext(side=2, "Catch", cex=1.5, line=3)
-plot(hake$data$year, hake$data$index, type="l", lwd=3, ylim=c(0, max(hake$data$index)*1.2), cex.axis=1.5, xaxs="i", yaxs="i", yaxt="n")
-axis(2, at=seq(0,1.5,by=0.5), cex.axis=1.5)
-mtext(side=2, "Index", cex=1.5, line=3)
-mtext(side=1, "Year", cex=1.5, line=3)
 
 
 ## self-generated mean length - no recruitment variation
@@ -512,7 +611,7 @@ boxplot(hakeOM$S[,"sel50"], M0$S[M0$idx,"sel50"], M2_v2$S[M2_v2$idx,"sel50"],col
 dev.off()
 
 
-# catch + meanlength + index scatterplot
+# catch + avgSize + index scatterplot
 M3_cols <- rep("black", nsamp)
 M3_cols[which(1:nsamp %in% unique(M3$idx)==FALSE)] <- "purple"
 M3_cols[which(1:nsamp %in% unique(M1$idx)==FALSE)] <- "steelblue"
@@ -521,7 +620,7 @@ png(file.path(fig_dir, "catch_indexmeanlen_scatter.png"), width=10, height=8, un
 pairs(M3$S, gap=0, col=M3_cols,pch=20)
 dev.off()
 
-## catch + meanlength + index histogram
+## catch + avgSize + index histogram
 png(file.path(fig_dir, "MSY_catchindexmeanlen_hist.png"), width=10, height=6, units="in", res=200)
 xlim <- c(0, hakeOM$dfPriorInfo$par2[3]*1.2)
 ylim <- c(0, nsamp/10)
@@ -544,7 +643,7 @@ hist(M3$S[M3$idx,"sel50"], col="#00AA0050", lty="blank", xlim=xlim, ylim=ylim, x
 legend("topright", legend=c("Sampling space","Catch+Index", "Catch+Index+MeanLength"), pch=15, col=c("gray",  "#0000AA50", "#00AA0050"))
 dev.off()
 
-## catch + meanlength + index boxplot
+## catch + avgSize + index boxplot
 png(file.path(fig_dir, "MSY_boxplot_5.png"), width=10, height=6, units="in", res=200)
 boxplot(hakeOM$S[,"MSY"], M1$S[M1$idx,"MSY"],M3$S[M3$idx,"MSY"], col=c("gray","steelblue", "forestgreen"), lwd=2, xlim=c(0,8), ylim=c(hakeOM$dfPriorInfo$par1[3], hakeOM$dfPriorInfo$par2[3]))
 dev.off()
