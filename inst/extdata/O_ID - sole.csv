@@ -1,0 +1,2 @@
+Region,Subregion,Stock,Name,EnglishName,ScientificName,SpecCode,Group,Source,MinOfYear,MaxOfYear,StartYear,EndYear,Flim,Fpa,Blim,Bpa,Bmsy,FMSY,MSY,MSYBtrigger,B40,M,Fofl,Resilience,r.low,r.hi,stb.low,stb.hi,int.yr,intb.low,intb.hi,endb.low,endb.hi,q.start,q.end,btype,force.cmsy,Comment
+Mediterranean,Adriatic Sea,Sole_sol_AD,Common sole,Sole,Solea solea,,,,1972,2015,1972,2015,,,,,,,,,,,,Medium,NA,NA,0.5,0.9,1990,0.01,0.4,0.01,0.4,NA,NA,CPUE,F,
